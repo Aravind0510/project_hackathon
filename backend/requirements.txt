@@ -1,0 +1,14 @@
+streamlit
+pandas
+numpy
+openpyxl
+filelock
+fastapi
+uvicorn
+pandas
+numpy
+filelock
+python-multipart
+fastapi
+uvicorn
+python-multipart
