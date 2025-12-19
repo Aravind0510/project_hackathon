@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Leaderboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>Leaderboard</header>
+
+<nav>
+    <a href="index.html">Home</a>
+    <a href="upload.html">Submit Solution</a>
+    <a href="leaderboard.html">Leaderboard</a>
+</nav>
+
+<section>
+    <h2>Current Rankings</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>User</th>
+                <th>SMAPE (%)</th>
+                <th>Submitted At</th>
+            </tr>
+        </thead>
+        <tbody id="leaderboardBody"></tbody>
+    </table>
+</section>
+
+<footer>© 2025 SMAPE Leaderboard Platform</footer>
+
+<script>
+async function loadLeaderboard() {
+    const res = await fetch("/leaderboard");
+    const data = await res.json();
+    const tbody = document.getElementById("leaderboardBody");
+    tbody.innerHTML = "";
+
+    data.forEach((row, index) => {
+        const tr = document.createElement("tr");
+        let bgColor = "";
+        if(row.rank === 1) bgColor = "background-color: gold; color: black;";
+        else if(row.rank === 2) bgColor = "background-color: silver; color: black;";
+        else if(row.rank === 3) bgColor = "background-color: #cd7f32; color: black;"; // bronze
+        tr.setAttribute("style", bgColor);
+
+        tr.innerHTML = `<td>${row.rank}</td><td>${row.user}</td><td>${row.smape}</td><td>${row.timestamp}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+// Auto-load leaderboard
+loadLeaderboard();
+</script>
+
+</body>
+</html>

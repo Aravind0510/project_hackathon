@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Submit Prediction</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>Submit Your Prediction</header>
+
+<nav>
+    <a href="index.html">Home</a>
+    <a href="upload.html">Submit Solution</a>
+    <a href="leaderboard.html">Leaderboard</a>
+</nav>
+
+<section>
+    <h2>Upload Your CSV Prediction</h2>
+    <input type="text" id="userName" placeholder="Enter Your Name" />
+    <input type="file" id="fileInput" accept=".csv" />
+    <button onclick="upload()">Submit</button>
+    <p id="result"></p>
+</section>
+
+<footer>© 2025 SMAPE Leaderboard Platform</footer>
+
+<script>
+async function upload() {
+    const userName = document.getElementById("userName").value;
+    const file = document.getElementById("fileInput").files[0];
+    if(!userName || !file) { alert("Enter name and file"); return; }
+
+    const formData = new FormData();
+    formData.append("user_name", userName);
+    formData.append("file", file);
+
+    const res = await fetch("/upload", { method: "POST", body: formData });
+    const data = await res.json();
+
+    const resultEl = document.getElementById("result");
+    if(data.error) resultEl.innerText = "Error: " + data.error;
+    else resultEl.innerText = `Hello ${userName}, your SMAPE Score: ${data.smape}%`;
+}
+</script>
+</body>
+</html>
