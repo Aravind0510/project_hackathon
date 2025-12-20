@@ -251,14 +251,17 @@ function renderHistory() {
   
   history.innerHTML = "";
   
-  if (sessionSubmissions.length === 0) {
+  // Filter submissions to only show current team's submissions
+  const mySubmissions = sessionSubmissions.filter(row => row.team === currentTeamName);
+  
+  if (mySubmissions.length === 0) {
     if(historyTable) historyTable.classList.add('hidden');
     if(noHistory) noHistory.classList.remove('hidden');
   } else {
     if(noHistory) noHistory.classList.add('hidden');
     if(historyTable) historyTable.classList.remove('hidden');
     
-    sessionSubmissions.forEach((row, index) => {
+    mySubmissions.forEach((row, index) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${index + 1}</td>
@@ -291,6 +294,9 @@ loadHistoryFromDB();
     // Update user info in sidebar
     document.getElementById('userNameDisplay').textContent = data.team_name;
     document.getElementById('userAvatar').textContent = data.team_name.charAt(0).toUpperCase();
+    
+    // Re-render history to filter by current team
+    renderHistory();
   } catch (e) {
     window.location.href = 'login.html';
   }
