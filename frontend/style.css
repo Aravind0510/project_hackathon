@@ -11,6 +11,7 @@
   --text-main: #e8f6ff;
   --text-muted: #cfe8ff;
   --accent: #0a6bff;
+  --accent-2: #6ae3b8;
   --danger: #ff416c;
 }
 
@@ -71,6 +72,33 @@ nav a{
 .hero{display:flex;gap:24px;align-items:center;padding:28px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.04));}
 .hero h1{margin:0;font-size:1.9rem;color:var(--text-main)}
 .hero p{opacity:.95;color:var(--text-muted);line-height:1.5}
+
+/* Heading accents */
+.main-content .card.full h1{color:var(--accent);text-shadow:0 2px 12px rgba(10,107,255,0.06)}
+.main-content .card.full h2{color:var(--accent-2)}
+.main-content .card.full h3{color:var(--text-main)}
+
+/* Global heading colors - use theme variables for consistent look */
+h1 { color: var(--accent); font-weight:800; }
+h2 { color: var(--accent-2); font-weight:700; }
+h3 { color: var(--text-main); font-weight:600; }
+
+/* Heading hover / interaction - make titles pop */
+h1, h2, h3 { transition: color 220ms ease, transform 220ms ease, text-shadow 220ms ease; }
+h1:hover{ color: #ffffff; transform:translateY(-4px); text-shadow:0 10px 30px rgba(10,107,255,0.18); }
+h2:hover{ color: #eafff5; transform:translateY(-3px); text-shadow:0 8px 20px rgba(106,227,184,0.12); }
+h3:hover{ color: #ffffff; transform:translateY(-2px); text-shadow:0 6px 16px rgba(255,255,255,0.04); }
+
+/* Brand and nav icons */
+.brand{font-weight:800;margin-bottom:18px;display:flex;align-items:center;gap:10px;font-size:1.5rem}
+.brand .brand-icon{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 6px 18px rgba(10,107,255,0.12);font-size:18px}
+.brand:hover{transform:translateY(-2px);cursor:pointer}
+.side-nav a .nav-icon{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:8px;margin-right:10px;background:rgba(255,255,255,0.02);color:var(--text-main);font-size:16px}
+.side-nav a:hover .nav-icon{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;transform:translateY(-2px);box-shadow:0 8px 24px rgba(10,107,255,0.12)}
+
+/* Page header styling */
+header{color:var(--accent);transition:all 220ms ease;text-align:center;padding:18px}
+header:hover{color:#fff;text-shadow:0 10px 30px rgba(10,107,255,0.12);transform:translateY(-2px)}
 .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
 .feature{background:rgba(255,255,255,0.03);padding:18px;border-radius:12px}
 
@@ -114,6 +142,14 @@ code{background:rgba(255,255,255,0.03);padding:2px 6px;border-radius:6px;color:v
 .big-input{width:100%;padding:16px;border-radius:12px;border:none;margin:8px 0;background:rgba(255,255,255,0.03);color:#fff}
 .primary-btn{background:linear-gradient(90deg,#0a6bff,#00c3ff);padding:12px 16px;border-radius:10px;color:white;font-weight:700;border:none;cursor:pointer}
 .primary-btn:active{transform:translateY(1px)}
+.primary-btn:hover{transform:translateY(-4px);box-shadow:0 10px 30px rgba(10,107,255,0.18);filter:brightness(1.03)}
+
+button{transition:all 220ms ease}
+
+/* Preview inside upload form */
+#previewTitle{margin-top:14px;color:var(--text-main);font-size:1.05rem}
+#previewContainer{margin-top:8px;padding:12px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.02));box-shadow:inset 0 1px 0 rgba(255,255,255,0.01)}
+#previewTable thead th{background:rgba(0,0,0,0.12);}
 
 /* small UI bits */
 .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);font-weight:700;color:#cfe8ff}
@@ -220,6 +256,21 @@ code{background:rgba(255,255,255,0.03);padding:2px 6px;border-radius:6px;color:v
 
 .hidden{display:none}
 
+/* Celebration (balloons) */
+.celebration{position:fixed;left:0;right:0;top:0;bottom:0;pointer-events:none;overflow:hidden;z-index:9999}
+.balloon{
+  position:absolute;bottom:-80px;
+  width:36px;height:48px;border-radius:18px 18px 18px 18px;opacity:0.95;
+  transform-origin:center bottom;box-shadow:0 6px 18px rgba(0,0,0,0.25);
+  animation:floatUp linear forwards;
+}
+.balloon:after{content:'';position:absolute;left:50%;transform:translateX(-50%);bottom:-8px;width:2px;height:12px;background:rgba(255,255,255,0.08)}
+
+@keyframes floatUp{
+  0%{transform:translateY(0) rotate(0deg);opacity:1}
+  100%{transform:translateY(-120vh) rotate(360deg);opacity:0}
+}
+
 @media (max-width: 900px){
   .app-shell{flex-direction:column;padding:8px}
   .sidebar{width:100%;display:flex;justify-content:space-between;align-items:center}
@@ -271,6 +322,7 @@ table{
 th,td{
   padding:12px;
   text-align:center;
+  vertical-align: middle;
 }
 
 tr:hover{

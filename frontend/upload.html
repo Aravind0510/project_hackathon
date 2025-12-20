@@ -8,12 +8,12 @@
 
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="brand">Hack-like SMAPE</div>
+    <div class="brand"><span class="brand-icon">⚙️</span>TechnoForge</div>
     <nav class="side-nav">
-      <a href="problem.html">Problem Statement</a>
-      <a href="index.html">Dashboard</a>
-      <a class="active" href="upload.html">Submissions</a>
-      <a href="leaderboard.html">Leaderboard</a>
+       <a href="index.html"><span class="nav-icon">🏠</span>Dashboard</a>
+      <a href="problem.html"><span class="nav-icon">📄</span>Problem Statement</a>
+      <a class="active" href="upload.html"><span class="nav-icon">📤</span>Submissions</a>
+      <a href="leaderboard.html"><span class="nav-icon">🏆</span>Leaderboard</a>
     </nav>
   </aside>
 
@@ -23,28 +23,30 @@
     <section class="card full submit-card">
       <div class="submit-form">
         <h2>Submit CSV</h2>
-        <p>Upload your prediction CSV. We'll compute SMAPE and add your submission to the live leaderboard.</p>
+        <p>Upload your prediction CSV. We'll compute Metric Score and add your submission to the live leaderboard.</p>
 
         <div style="margin-top:12px">
           <input id="userName" class="big-input" placeholder="Enter your team name">
           <input type="file" id="csvFile" class="big-input" accept=".csv" onchange="previewCSV()">
           <div style="display:flex;gap:12px;align-items:center">
-            <button class="primary-btn" onclick="submitFile()">Run & Submit</button>
+            <button id="submitBtn" class="primary-btn" onclick="submitFile()" disabled>Run & Submit</button>
           </div>
           <p id="status"></p>
+          <h3 class="hidden" id="previewTitle">Your Upload CSV file Preview</h3>
+          <div id="previewContainer" class="hidden" style="overflow:auto">
+            <table id="previewTable" class="lb-table">
+              <thead id="previewHead"></thead>
+              <tbody id="preview"></tbody>
+            </table>
+          </div>
         </div>
-
-        <h3>CSV Preview (First 5 Lines)</h3>
-        <table>
-          <tbody id="preview"></tbody>
-        </table>
       </div>
 
       <aside class="submit-panel">
         <h3>Submission History</h3>
         <table>
           <thead>
-            <tr><th>#</th><th>SMAPE</th><th>Time</th></tr>
+            <tr><th>#</th><th>Metric Score</th><th>Time</th></tr>
           </thead>
           <tbody id="history"></tbody>
         </table>
@@ -61,20 +63,72 @@ function previewCSV() {
 
   const reader = new FileReader();
   reader.onload = function (e) {
-    const lines = e.target.result.split("\n").slice(0, 5);
+    const text = e.target.result.replace(/\r\n/g,'\n').trim();
+    if(!text){ return }
+    const lines = text.split("\n").slice(0, 6); // first line may be header + 5 rows
     const preview = document.getElementById("preview");
+    const previewHead = document.getElementById('previewHead');
+    const previewContainer = document.getElementById('previewContainer');
+    const previewTitle = document.getElementById('previewTitle');
+    const submitBtn = document.getElementById('submitBtn');
     preview.innerHTML = "";
+    previewHead.innerHTML = '';
 
-    lines.forEach(line => {
-      const tr = document.createElement("tr");
-      const td = document.createElement("td");
-      td.innerText = line;
-      tr.appendChild(td);
-      preview.appendChild(tr);
-    });
+    // detect header: if first line contains comma and looks like headers
+    const first = lines[0];
+    const hasHeader = first && first.includes(',');
+
+    if(hasHeader){
+      const headers = first.split(',').map(h=>h.trim());
+      const headRow = document.createElement('tr');
+      headers.forEach(h=>{
+        const th = document.createElement('th');
+        th.innerText = h || '-';
+        headRow.appendChild(th);
+      });
+      previewHead.appendChild(headRow);
+
+      // render next up to 5 rows
+      lines.slice(1).forEach(line=>{
+        const cells = line.split(',');
+        const tr = document.createElement('tr');
+        cells.forEach(c=>{ const td=document.createElement('td'); td.innerText = c.trim(); tr.appendChild(td); });
+        preview.appendChild(tr);
+      });
+      if(previewContainer) previewContainer.classList.remove('hidden');
+      if(previewTitle) previewTitle.classList.remove('hidden');
+      if(submitBtn) submitBtn.disabled = false;
+    } else {
+      // fallback: single-column rows
+      const headRow = document.createElement('tr');
+      const th = document.createElement('th'); th.innerText = 'Row'; headRow.appendChild(th);
+      previewHead.appendChild(headRow);
+      lines.forEach(line=>{
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.innerText = line;
+        tr.appendChild(td);
+        preview.appendChild(tr);
+      });
+      if(previewContainer) previewContainer.classList.remove('hidden');
+      if(previewTitle) previewTitle.classList.remove('hidden');
+      if(submitBtn) submitBtn.disabled = false;
+    }
   };
   reader.readAsText(file);
 }
+
+// hide preview and disable submit if user clears file input
+document.getElementById('csvFile').addEventListener('change', function(){
+  const previewContainer = document.getElementById('previewContainer');
+  const previewTitle = document.getElementById('previewTitle');
+  const submitBtn = document.getElementById('submitBtn');
+  if(!this.files || this.files.length === 0){
+    if(previewContainer) previewContainer.classList.add('hidden');
+    if(previewTitle) previewTitle.classList.add('hidden');
+    if(submitBtn) submitBtn.disabled = true;
+  }
+});
 
 async function submitFile() {
   const userName = document.getElementById("userName").value.trim();
@@ -92,6 +146,8 @@ async function submitFile() {
   formData.append("file", file);
 
   status.innerText = "Uploading...";
+  const submitBtn = document.getElementById('submitBtn');
+  if(submitBtn) submitBtn.disabled = true;
 
   try {
     const res = await fetch("/upload", {
@@ -103,12 +159,39 @@ async function submitFile() {
 
     if (data.error) {
       status.innerText = "Error: " + data.error;
+      if(submitBtn) submitBtn.disabled = false;
     } else {
-      status.innerText = `✅ Submitted successfully. SMAPE: ${data.smape}`;
+      status.innerText = `✅ Submitted successfully. Metric Score: ${data.smape}`;
       loadHistory(userName);
+      // show a brief celebration
+      showCelebration();
+      if(submitBtn) submitBtn.disabled = false;
     }
   } catch (err) {
     status.innerText = "Upload failed!";
+    const submitBtn = document.getElementById('submitBtn');
+    if(submitBtn) submitBtn.disabled = false;
+  }
+}
+
+function showCelebration(){
+  const container = document.getElementById('celebration');
+  if(!container) return;
+  const colors = ['#0a6bff','#00c3ff','#6ae3b8','#ffd36b','#ff7aa2'];
+  const count = 12;
+  for(let i=0;i<count;i++){
+    const b = document.createElement('div');
+    b.className = 'balloon';
+    const size = 28 + Math.round(Math.random()*36);
+    b.style.width = size+'px'; b.style.height = Math.round(size*1.25)+'px';
+    b.style.left = Math.round(Math.random()*90)+'%';
+    b.style.background = colors[i % colors.length];
+    const dur = 3000 + Math.round(Math.random()*3000);
+    b.style.animationDuration = dur+'ms';
+    b.style.animationDelay = Math.round(Math.random()*300)+'ms';
+    container.appendChild(b);
+    // cleanup
+    setTimeout(()=>{ b.remove(); }, dur + 800);
   }
 }
 
@@ -130,6 +213,8 @@ async function loadHistory(userName) {
   });
 }
 </script>
+
+<div id="celebration" class="celebration"></div>
 
 </body>
 </html>

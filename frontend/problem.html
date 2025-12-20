@@ -7,12 +7,12 @@
 <body>
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="brand">Hack-like SMAPE</div>
+    <div class="brand"><span class="brand-icon">⚙️</span>TechnoForge</div>
     <nav class="side-nav">
-      <a class="active" href="problem.html">Problem Statement</a>
-      <a href="index.html">Dashboard</a>
-      <a href="upload.html">Submissions</a>
-      <a href="leaderboard.html">Leaderboard</a>
+      <a href="index.html"><span class="nav-icon">🏠</span>Dashboard</a>
+      <a class="active" href="problem.html"><span class="nav-icon">📄</span>Problem Statement</a>
+      <a href="upload.html"><span class="nav-icon">📤</span>Submissions</a>
+      <a href="leaderboard.html"><span class="nav-icon">🏆</span>Leaderboard</a>
     </nav>
   </aside>
 
@@ -22,7 +22,7 @@
 
       <h2>Overview</h2>
       <p class="lead">
-        The goal of this hackathon is to develop a model that accurately forecasts demand for bus journeys at the route level, 15 days prior to the journey date (doj). Predictions will be evaluated using SMAPE (Symmetric Mean Absolute Percentage Error); lower values are better.
+        The goal of this hackathon is to develop a model that accurately forecasts demand for bus journeys at the route level, 15 days prior to the journey date (doj). Predictions will be evaluated using metric_score; lower values are better.
       </p>
       <hr class="section-divider">
 
@@ -62,7 +62,7 @@
       <h3>1) train.csv</h3>
       <table class="data-table">
         <thead>
-          <tr><th>Variable</th><th>Description</th></tr>
+          <tr><th><center>Variable</center></th><th><center>Description</center></th></tr>
         </thead>
         <tbody>
           <tr><td><code>doj</code></td><td>Date of Journey (travel date)</td></tr>
@@ -75,7 +75,7 @@
       <h3>2) test.csv</h3>
       <table class="data-table">
         <thead>
-          <tr><th>Variable</th><th>Description</th></tr>
+          <tr><th><center>Variable</center></th><th><center>Description</center></th></tr>
         </thead>
         <tbody>
           <tr><td><code>route_key</code></td><td>Unique identifier for the test row</td></tr>
@@ -88,7 +88,7 @@
       <h3>3) transactions.csv</h3>
       <table class="data-table">
         <thead>
-          <tr><th>Variable</th><th>Description</th></tr>
+          <tr><th><center>Variable</center></th><th><center>Description</center></th></tr>
         </thead>
         <tbody>
           <tr><td><code>doj</code></td><td>Date of Journey</td></tr>
@@ -108,7 +108,7 @@
       <h3>4) submission_file.csv</h3>
       <table class="data-table">
         <thead>
-          <tr><th>Variable</th><th>Description</th></tr>
+          <tr><th><center>Variable</center></th><th><center>Description</center></th></tr>
         </thead>
         <tbody>
           <tr><td><code>route_key</code></td><td>Unique identifier for the test row</td></tr>
@@ -116,7 +116,7 @@
         </tbody>
       </table>
 
-      <p style="margin-top:16px;opacity:0.9">Good luck! Follow the evaluation metric (SMAPE) closely and document feature engineering decisions. If you'd like, I can add a starter notebook and link the datasets from the project repository.</p>
+      <p style="margin-top:16px;opacity:0.9">Good luck! Follow the evaluation metric closely and document feature engineering decisions. If you'd like, I can add a starter notebook and link the datasets from the project repository.</p>
     </section>
   </main>
 </div>
