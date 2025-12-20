@@ -9,18 +9,26 @@
   <aside class="sidebar">
     <div class="brand"><span class="brand-icon">⚙️</span>TechnoForge</div>
     <nav class="side-nav">
-      <a class="active" href="index.html"><span class="nav-icon">🏠</span>Dashboard</a>
-      <a href="problem.html"><span class="nav-icon">📄</span>Problem Statement</a>
-      <a href="upload.html"><span class="nav-icon">📤</span>Submissions</a>
-      <a href="leaderboard.html"><span class="nav-icon">🏆</span>Leaderboard</a>
+      <a class="active" href="index.html"><span class="nav-icon">⌂</span>Home</a>
+      <a href="problem.html"><span class="nav-icon">📋</span>Problem Statement</a>
+      <a href="upload.html"><span class="nav-icon">🚀</span>Submissions</a>
+      <a href="leaderboard.html"><span class="nav-icon">🥇</span>Leaderboard</a>
     </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <span class="user-avatar" id="userAvatar">T</span>
+        <span class="user-name" id="userName">Team</span>
+      </div>
+      <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+    </div>
   </aside>
 
   <main class="main-content">
+    <header style="text-align:center;margin-bottom:20px">🎉 Welcome to TechnoForge Hackathon</header>
     <section class="card full">
       <div class="hero">
         <div>
-          <h1>� Inter-City Service Demand Forecasting</h1>
+          <h1>📊 Inter-City Service Demand Forecasting</h1>
           <p>Predict service demand, upload your forecasts, and compete on a live leaderboard — all in one unified platform.</p>
           <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap">
             <a class="primary-btn" href="upload.html">🚀 Submit Prediction</a>
@@ -47,9 +55,34 @@
         </div>
       </div>
     </section>
+    <footer>© 2025 TechnoForge Platform</footer>
   </main>
 </div>
 
-<footer>© 2025 TechnoForge Platform</footer>
+<script>
+// Auth check via database
+(async function() {
+  try {
+    const res = await fetch('/auth/me');
+    const data = await res.json();
+    
+    if (!data.authenticated) {
+      window.location.href = 'login.html';
+      return;
+    }
+    
+    // Update user info in sidebar
+    document.getElementById('userName').textContent = data.team_name;
+    document.getElementById('userAvatar').textContent = data.team_name.charAt(0).toUpperCase();
+  } catch (e) {
+    window.location.href = 'login.html';
+  }
+})();
+
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  window.location.href = 'login.html';
+}
+</script>
 </body>
 </html>

@@ -10,11 +10,18 @@
   <aside class="sidebar">
     <div class="brand"><span class="brand-icon">⚙️</span>TechnoForge</div>
     <nav class="side-nav">
-       <a href="index.html"><span class="nav-icon">🏠</span>Dashboard</a>
-      <a href="problem.html"><span class="nav-icon">📄</span>Problem Statement</a>
-      <a class="active" href="upload.html"><span class="nav-icon">📤</span>Submissions</a>
-      <a href="leaderboard.html"><span class="nav-icon">🏆</span>Leaderboard</a>
+      <a href="index.html"><span class="nav-icon">⌂</span>Home</a>
+      <a href="problem.html"><span class="nav-icon">📋</span>Problem Statement</a>
+      <a class="active" href="upload.html"><span class="nav-icon">🚀</span>Submissions</a>
+      <a href="leaderboard.html"><span class="nav-icon">🥇</span>Leaderboard</a>
     </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <span class="user-avatar" id="userAvatar">T</span>
+        <span class="user-name" id="userNameDisplay">Team</span>
+      </div>
+      <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+    </div>
   </aside>
 
   <main class="main-content">
@@ -26,7 +33,6 @@
         <p style="color:var(--text-muted);line-height:1.6">Upload your prediction CSV file. We'll compute the Metric Score and add your submission to the live leaderboard.</p>
 
         <div style="margin-top:20px">
-          <input id="userName" class="big-input" placeholder="👤 Enter your team name">
           <input type="file" id="csvFile" class="big-input" accept=".csv" onchange="previewCSV()">
           <div style="display:flex;gap:12px;align-items:center;margin-top:8px">
             <button id="submitBtn" class="primary-btn" onclick="submitFile()" disabled>🚀 Run & Submit</button>
@@ -131,14 +137,16 @@ document.getElementById('csvFile').addEventListener('change', function(){
   }
 });
 
+let currentTeamName = 'Unknown Team';
+
 async function submitFile() {
-  const userName = document.getElementById("userName").value.trim();
+  const userName = currentTeamName;
   const fileInput = document.getElementById("csvFile");
   const file = fileInput.files[0];
   const status = document.getElementById("status");
 
-  if (!userName || !file) {
-    alert("Please enter your name and select a CSV file");
+  if (!file) {
+    alert("Please select a CSV file");
     return;
   }
 
@@ -265,6 +273,33 @@ function renderHistory() {
 
 // Initialize history display from database
 loadHistoryFromDB();
+
+// Auth check via database
+(async function() {
+  try {
+    const res = await fetch('/auth/me');
+    const data = await res.json();
+    
+    if (!data.authenticated) {
+      window.location.href = 'login.html';
+      return;
+    }
+    
+    // Store team name for submissions
+    currentTeamName = data.team_name;
+    
+    // Update user info in sidebar
+    document.getElementById('userNameDisplay').textContent = data.team_name;
+    document.getElementById('userAvatar').textContent = data.team_name.charAt(0).toUpperCase();
+  } catch (e) {
+    window.location.href = 'login.html';
+  }
+})();
+
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  window.location.href = 'login.html';
+}
 
 </script>
 

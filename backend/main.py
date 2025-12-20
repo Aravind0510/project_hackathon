@@ -1,11 +1,15 @@
-from fastapi import FastAPI, UploadFile, Form
+from fastapi import FastAPI, UploadFile, Form, Response, Request, Cookie
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 import pandas as pd
 import numpy as np
 import tempfile, os
 import sqlite3
 from datetime import datetime
+from typing import Optional
+import hashlib
+import secrets
 
 app = FastAPI(title="SMAPE Leaderboard")
 
@@ -24,6 +28,9 @@ def get_db_connection():
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     return conn
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
 
 def init_db():
     conn = get_db_connection()
@@ -44,7 +51,40 @@ def init_db():
             timestamp TEXT NOT NULL
         )
     ''')
+    # Create teams table for authentication
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS teams (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            team_id TEXT UNIQUE NOT NULL,
+            team_name TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    ''')
+    # Create auth tokens table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS auth_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            team_id TEXT NOT NULL,
+            token TEXT UNIQUE NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    ''')
     conn.commit()
+    
+    # Insert test teams if they don't exist
+    try:
+        conn.execute(
+            'INSERT OR IGNORE INTO teams (team_id, team_name, password_hash, created_at) VALUES (?, ?, ?, ?)',
+            ('1234', 'Team Alpha', hash_password('password123'), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        )
+        conn.execute(
+            'INSERT OR IGNORE INTO teams (team_id, team_name, password_hash, created_at) VALUES (?, ?, ?, ?)',
+            ('4321', 'Team Beta', hash_password('password456'), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        )
+        conn.commit()
+    except:
+        pass
     conn.close()
 
 init_db()
@@ -142,8 +182,96 @@ def clear_history(session_id: str):
     conn.commit()
     conn.close()
     return {"status": "History cleared"}
-    return {"status": "Leaderboard reset"}
-    return {"status": "Leaderboard reset"}
+
+# Authentication endpoints
+@app.post("/auth/login")
+def login(response: Response, team_id: str = Form(...), password: str = Form(...)):
+    conn = get_db_connection()
+    team = conn.execute(
+        'SELECT * FROM teams WHERE team_id = ?',
+        (team_id,)
+    ).fetchone()
+    
+    if not team:
+        conn.close()
+        return {"success": False, "error": "Team not found"}
+    
+    if team["password_hash"] != hash_password(password):
+        conn.close()
+        return {"success": False, "error": "Invalid password"}
+    
+    # Generate auth token
+    token = secrets.token_hex(32)
+    conn.execute(
+        'INSERT INTO auth_tokens (team_id, token, created_at) VALUES (?, ?, ?)',
+        (team_id, token, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    )
+    conn.commit()
+    conn.close()
+    
+    # Set HTTP-only cookie
+    response.set_cookie(
+        key="auth_token",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=86400  # 24 hours
+    )
+    
+    return {
+        "success": True,
+        "team_name": team["team_name"],
+        "team_id": team_id
+    }
+
+@app.post("/auth/logout")
+def logout(response: Response, auth_token: Optional[str] = Cookie(None)):
+    if auth_token:
+        conn = get_db_connection()
+        conn.execute('DELETE FROM auth_tokens WHERE token = ?', (auth_token,))
+        conn.commit()
+        conn.close()
+    
+    response.delete_cookie("auth_token")
+    return {"success": True}
+
+@app.get("/auth/me")
+def get_current_user(auth_token: Optional[str] = Cookie(None)):
+    """Get current logged-in user from cookie"""
+    if not auth_token:
+        return {"authenticated": False}
+    
+    conn = get_db_connection()
+    auth = conn.execute(
+        'SELECT t.team_id, t.team_name FROM auth_tokens a JOIN teams t ON a.team_id = t.team_id WHERE a.token = ?',
+        (auth_token,)
+    ).fetchone()
+    conn.close()
+    
+    if auth:
+        return {"authenticated": True, "team_id": auth["team_id"], "team_name": auth["team_name"]}
+    return {"authenticated": False}
+
+@app.get("/auth/verify/{token}")
+def verify_token(token: str):
+    conn = get_db_connection()
+    auth = conn.execute(
+        'SELECT t.team_id, t.team_name FROM auth_tokens a JOIN teams t ON a.team_id = t.team_id WHERE a.token = ?',
+        (token,)
+    ).fetchone()
+    conn.close()
+    
+    if auth:
+        return {"valid": True, "team_id": auth["team_id"], "team_name": auth["team_name"]}
+    return {"valid": False}
+
+@app.get("/auth/teams")
+def get_teams():
+    """Get list of all registered teams (for admin purposes)"""
+    conn = get_db_connection()
+    teams = conn.execute('SELECT team_id, team_name, created_at FROM teams').fetchall()
+    conn.close()
+    return [{"team_id": t["team_id"], "team_name": t["team_name"], "created_at": t["created_at"]} for t in teams]
 
 FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

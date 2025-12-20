@@ -9,16 +9,24 @@
   <aside class="sidebar">
     <div class="brand"><span class="brand-icon">⚙️</span>TechnoForge</div>
     <nav class="side-nav">
-      <a href="index.html"><span class="nav-icon">🏠</span>Dashboard</a>
-      <a class="active" href="problem.html"><span class="nav-icon">📄</span>Problem Statement</a>
-      <a href="upload.html"><span class="nav-icon">📤</span>Submissions</a>
-      <a href="leaderboard.html"><span class="nav-icon">🏆</span>Leaderboard</a>
+      <a href="index.html"><span class="nav-icon">⌂</span>Home</a>
+      <a class="active" href="problem.html"><span class="nav-icon">📋</span>Problem Statement</a>
+      <a href="upload.html"><span class="nav-icon">🚀</span>Submissions</a>
+      <a href="leaderboard.html"><span class="nav-icon">🥇</span>Leaderboard</a>
     </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <span class="user-avatar" id="userAvatar">T</span>
+        <span class="user-name" id="userName">Team</span>
+      </div>
+      <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+    </div>
   </aside>
 
   <main class="main-content">
+    <header style="text-align:center;margin-bottom:20px">📄 Problem Statement</header>
     <section class="card full">
-      <h1>📊 Inter-City Service Demand Forecasting Challenge</h1>
+      <h1 style="text-align:center">📊 Inter-City Service Demand Forecasting Challenge</h1>
 
       <h2>Background</h2>
       <p class="lead">
@@ -166,6 +174,32 @@
     </section>
   </main>
 </div>
+
+<script>
+// Auth check via database
+(async function() {
+  try {
+    const res = await fetch('/auth/me');
+    const data = await res.json();
+    
+    if (!data.authenticated) {
+      window.location.href = 'login.html';
+      return;
+    }
+    
+    // Update user info in sidebar
+    document.getElementById('userName').textContent = data.team_name;
+    document.getElementById('userAvatar').textContent = data.team_name.charAt(0).toUpperCase();
+  } catch (e) {
+    window.location.href = 'login.html';
+  }
+})();
+
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  window.location.href = 'login.html';
+}
+</script>
 
 </body>
 </html>

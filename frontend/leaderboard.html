@@ -10,28 +10,60 @@
   <aside class="sidebar">
     <div class="brand"><span class="brand-icon">⚙️</span>TechnoForge</div>
     <nav class="side-nav">
-      <a href="index.html"><span class="nav-icon">🏠</span>Dashboard</a>
-      <a href="problem.html"><span class="nav-icon">📄</span>Problem Statement</a>
-      <a href="upload.html"><span class="nav-icon">📤</span>Submissions</a>
-      <a class="active" href="leaderboard.html"><span class="nav-icon">🏆</span>Leaderboard</a>
+      <a href="index.html"><span class="nav-icon">⌂</span>Home</a>
+      <a href="problem.html"><span class="nav-icon">📋</span>Problem Statement</a>
+      <a href="upload.html"><span class="nav-icon">🚀</span>Submissions</a>
+      <a class="active" href="leaderboard.html"><span class="nav-icon">🥇</span>Leaderboard</a>
     </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <span class="user-avatar" id="userAvatar">T</span>
+        <span class="user-name" id="userNameDisplay">Team</span>
+      </div>
+      <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+    </div>
   </aside>
 
   <main class="main-content">
-    <header style="margin-bottom:16px">🏆 Live Leaderboard</header>
+    <header style="margin-bottom:16px;text-align:center">🏆 Live Leaderboard</header>
 
     <section class="card full">
-      <div style="display:flex;gap:16px;align-items:center;justify-content:flex-end;flex-wrap:wrap;margin-bottom:8px">
-        <div style="display:flex;gap:10px;align-items:center">
-          <input id="myname" placeholder="Search team name..." style="min-width:200px" />
-          <button onclick="findMe()">🔍 Search</button>
+      <!-- Podium for Top 3 -->
+      <div class="podium-container" id="podiumContainer">
+        <div class="podium-item second" id="podium2">
+          <div class="podium-medal">🥈</div>
+          <div class="podium-avatar">2</div>
+          <div class="podium-name">-</div>
+          <div class="podium-score">-</div>
+          <div class="podium-block">2</div>
+        </div>
+        <div class="podium-item first" id="podium1">
+          <div class="podium-medal">🥇</div>
+          <div class="podium-avatar">1</div>
+          <div class="podium-name">-</div>
+          <div class="podium-score">-</div>
+          <div class="podium-block">1</div>
+        </div>
+        <div class="podium-item third" id="podium3">
+          <div class="podium-medal">🥉</div>
+          <div class="podium-avatar">3</div>
+          <div class="podium-name">-</div>
+          <div class="podium-score">-</div>
+          <div class="podium-block">3</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:16px;align-items:center;justify-content:flex-end;flex-wrap:wrap;margin-bottom:8px;margin-top:24px">
+        <div style="display:flex;gap:12px;align-items:center">
+          <input id="myname" placeholder="Search team name..." style="min-width:320px;padding:16px 20px;font-size:1.1rem;border-radius:12px" />
+          <button onclick="findMe()" style="padding:16px 24px;font-size:1.1rem;border-radius:12px">🔍 Search</button>
         </div>
       </div>
 
       <div style="overflow:auto;margin-top:16px">
         <table class="lb-table">
           <thead>
-            <tr><th class="lb-rank">Rank</th><th class="lb-name">Team Name</th><th class="lb-smape">Metric Score</th></tr>
+            <tr><th class="lb-rank">Rank</th><th class="lb-name">Team Name</th><th class="lb-smape">Metric Score</th><th class="lb-time">Submitted</th></tr>
           </thead>
           <tbody id="board"></tbody>
         </table>
@@ -46,17 +78,29 @@
 async function loadBoard(){
   const res = await fetch("/leaderboard");
   const data = await res.json();
-  // render as a clean table with Rank / Team / SMAPE
+  
+  // Update podium for top 3
+  updatePodium(data);
+  
+  // render as a clean table with Rank / Team / SMAPE / Timestamp
   const board = document.getElementById('board');
   board.innerHTML = '';
   const limit = window._lb_limit || 10;
   data.slice(0, limit).forEach(r=>{
     const tr = document.createElement('tr');
     tr.dataset.team = (r.user || '').toLowerCase();
+    
+    // Add medal for top 3
+    let rankDisplay = r.rank;
+    if(r.rank === 1) rankDisplay = '🥇 1';
+    else if(r.rank === 2) rankDisplay = '🥈 2';
+    else if(r.rank === 3) rankDisplay = '🥉 3';
+    
     tr.innerHTML = `
-      <td class="lb-rank">${r.rank}</td>
+      <td class="lb-rank">${rankDisplay}</td>
       <td class="lb-name">${r.user}</td>
-      <td class="lb-smape">${r.smape}</td>`;
+      <td class="lb-smape">${r.smape}</td>
+      <td class="lb-time">${r.timestamp || '-'}</td>`;
     board.appendChild(tr);
   });
 
@@ -72,6 +116,46 @@ async function loadBoard(){
   // if user previously searched, re-run highlight
   const lastQuery = document.getElementById('myname').value.trim();
   if(lastQuery) findMe();
+}
+
+function updatePodium(data) {
+  const podiumContainer = document.getElementById('podiumContainer');
+  
+  if(data.length < 1) {
+    podiumContainer.style.display = 'none';
+    return;
+  }
+  podiumContainer.style.display = 'flex';
+  
+  // First place
+  if(data[0]) {
+    const p1 = document.getElementById('podium1');
+    p1.querySelector('.podium-avatar').textContent = data[0].user.charAt(0).toUpperCase();
+    p1.querySelector('.podium-name').textContent = data[0].user;
+    p1.querySelector('.podium-score').textContent = data[0].smape;
+  }
+  
+  // Second place
+  if(data[1]) {
+    const p2 = document.getElementById('podium2');
+    p2.querySelector('.podium-avatar').textContent = data[1].user.charAt(0).toUpperCase();
+    p2.querySelector('.podium-name').textContent = data[1].user;
+    p2.querySelector('.podium-score').textContent = data[1].smape;
+    p2.style.visibility = 'visible';
+  } else {
+    document.getElementById('podium2').style.visibility = 'hidden';
+  }
+  
+  // Third place
+  if(data[2]) {
+    const p3 = document.getElementById('podium3');
+    p3.querySelector('.podium-avatar').textContent = data[2].user.charAt(0).toUpperCase();
+    p3.querySelector('.podium-name').textContent = data[2].user;
+    p3.querySelector('.podium-score').textContent = data[2].smape;
+    p3.style.visibility = 'visible';
+  } else {
+    document.getElementById('podium3').style.visibility = 'hidden';
+  }
 }
 
 function resetBoard(){
@@ -128,6 +212,30 @@ setInterval(loadBoard, 5000); // LIVE refresh
 document.getElementById('myname').addEventListener('keydown', function(e){
   if(e.key === 'Enter') findMe();
 });
+
+// Auth check via database
+(async function() {
+  try {
+    const res = await fetch('/auth/me');
+    const data = await res.json();
+    
+    if (!data.authenticated) {
+      window.location.href = 'login.html';
+      return;
+    }
+    
+    // Update user info in sidebar
+    document.getElementById('userNameDisplay').textContent = data.team_name;
+    document.getElementById('userAvatar').textContent = data.team_name.charAt(0).toUpperCase();
+  } catch (e) {
+    window.location.href = 'login.html';
+  }
+})();
+
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  window.location.href = 'login.html';
+}
 </script>
 </body>
 </html>
