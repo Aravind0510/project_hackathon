@@ -1,58 +1,136 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Leaderboard</title>
-    <link rel="stylesheet" href="style.css">
+  <title>Leaderboard</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>Leaderboard</header>
 
-<nav>
-    <a href="index.html">Home</a>
-    <a href="upload.html">Submit Solution</a>
-    <a href="leaderboard.html">Leaderboard</a>
-</nav>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">Hack-like SMAPE</div>
+    <nav class="side-nav">
+      <a href="problem.html">Problem Statement</a>
+      <a href="index.html">Dashboard</a>
+      <a href="upload.html">Submissions</a>
+      <a class="active" href="leaderboard.html">Leaderboard</a>
+    </nav>
+  </aside>
 
-<section>
-    <h2>Current Rankings</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Rank</th>
-                <th>User</th>
-                <th>SMAPE (%)</th>
-                <th>Submitted At</th>
-            </tr>
-        </thead>
-        <tbody id="leaderboardBody"></tbody>
-    </table>
-</section>
+  <main class="main-content">
+    <header style="margin-bottom:12px">🏆 Live Leaderboard</header>
 
-<footer>© 2025 SMAPE Leaderboard Platform</footer>
+    <section class="card full">
+      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <div>
+          <button class="danger" onclick="resetBoard()">Reset Leaderboard</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="myname" placeholder="Search team (press Enter)" />
+          <button onclick="findMe()">Search</button>
+        </div>
+      </div>
+
+      <div style="overflow:auto;margin-top:12px">
+        <table class="lb-table">
+          <thead>
+            <tr><th class="lb-rank">Rank</th><th class="lb-name">Team</th><th class="lb-smape">SMAPE</th></tr>
+          </thead>
+          <tbody id="board"></tbody>
+        </table>
+      </div>
+
+      <button id="showMore" class="show-more" onclick="showMore()">Show More Teams</button>
+    </section>
+  </main>
+</div>
 
 <script>
-async function loadLeaderboard() {
-    const res = await fetch("/leaderboard");
-    const data = await res.json();
-    const tbody = document.getElementById("leaderboardBody");
-    tbody.innerHTML = "";
+async function loadBoard(){
+  const res = await fetch("/leaderboard");
+  const data = await res.json();
+  // render as a clean table with Rank / Team / SMAPE
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  const limit = window._lb_limit || 10;
+  data.slice(0, limit).forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.dataset.team = (r.user || '').toLowerCase();
+    tr.innerHTML = `
+      <td class="lb-rank">${r.rank}</td>
+      <td class="lb-name">${r.user}</td>
+      <td class="lb-smape">${r.smape}</td>`;
+    board.appendChild(tr);
+  });
 
-    data.forEach((row, index) => {
-        const tr = document.createElement("tr");
-        let bgColor = "";
-        if(row.rank === 1) bgColor = "background-color: gold; color: black;";
-        else if(row.rank === 2) bgColor = "background-color: silver; color: black;";
-        else if(row.rank === 3) bgColor = "background-color: #cd7f32; color: black;"; // bronze
-        tr.setAttribute("style", bgColor);
+  // update show more label with remaining count
+  const moreBtn = document.getElementById('showMore');
+  if(data.length > limit){
+    moreBtn.innerText = `Show More Teams (${data.length - limit} more)`;
+    moreBtn.classList.remove('hidden');
+  } else {
+    moreBtn.classList.add('hidden');
+  }
 
-        tr.innerHTML = `<td>${row.rank}</td><td>${row.user}</td><td>${row.smape}</td><td>${row.timestamp}</td>`;
-        tbody.appendChild(tr);
-    });
+  // if user previously searched, re-run highlight
+  const lastQuery = document.getElementById('myname').value.trim();
+  if(lastQuery) findMe();
 }
 
-// Auto-load leaderboard
-loadLeaderboard();
-</script>
+function resetBoard(){
+  if(confirm("Reset leaderboard?")){
+    fetch("/leaderboard/reset",{method:"POST"}).then(()=>loadBoard());
+  }
+}
 
+function showMore(){
+  window._lb_limit = (window._lb_limit || 10) + 10;
+  loadBoard();
+}
+
+function findMe(){
+  const name = document.getElementById('myname').value.trim().toLowerCase();
+  if(!name) return alert('Enter a team name');
+  // find using substring match and highlight the first match
+  const rows = Array.from(document.querySelectorAll('#board tr'));
+  rows.forEach(r=>r.classList.remove('highlight'));
+  const found = rows.find(r => r.dataset.team && r.dataset.team.includes(name));
+  if(found){
+    found.classList.add('highlight');
+    // scroll into view within container
+    found.scrollIntoView({behavior:'smooth',block:'center'});
+  } else {
+    alert('Team not found in leaderboard');
+  }
+}
+
+function highlightTeam(name, data){
+  const found = data.find(d=>d.user.toLowerCase()===name.toLowerCase());
+  const pos = document.getElementById('your-position');
+  if(found){
+    pos.classList.remove('hidden');
+    pos.innerHTML = `
+      <div class="avatar">${found.user.slice(0,1).toUpperCase()}</div>
+      <div style="flex:1">
+        <div style="font-weight:700">${found.user} <small style="opacity:.8">(You)</small></div>
+        <div style="font-size:.9rem;color:rgba(255,255,255,.8)">Rank #${found.rank} • ${found.timestamp}</div>
+      </div>
+      <div style="font-weight:800">${found.smape}</div>`;
+    // scroll to top to make sure it's visible
+    window.scrollTo({top: document.body.scrollHeight - 200, behavior: 'smooth'});
+  } else {
+    pos.classList.add('hidden');
+    alert('Team not found in leaderboard');
+  }
+}
+
+loadBoard();
+setInterval(loadBoard, 5000); // LIVE refresh
+
+// search on Enter key
+document.getElementById('myname').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') findMe();
+});
+</script>
 </body>
 </html>

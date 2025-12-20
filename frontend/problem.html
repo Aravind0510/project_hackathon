@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Problem Statement</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">Hack-like SMAPE</div>
+    <nav class="side-nav">
+      <a class="active" href="problem.html">Problem Statement</a>
+      <a href="index.html">Dashboard</a>
+      <a href="upload.html">Submissions</a>
+      <a href="leaderboard.html">Leaderboard</a>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <section class="card full">
+      <h1>Problem Statement</h1>
+
+      <h2>Overview</h2>
+      <p class="lead">
+        The goal of this hackathon is to develop a model that accurately forecasts demand for bus journeys at the route level, 15 days prior to the journey date (doj). Predictions will be evaluated using SMAPE (Symmetric Mean Absolute Percentage Error); lower values are better.
+      </p>
+      <hr class="section-divider">
+
+      <h2>Key Factors Influencing Demand</h2>
+      <ul>
+        <li>Holiday calendars, wedding seasons, long weekends, school vacations, and exam schedules.</li>
+        <li>Regional holidays may affect areas differently, and day-of-week effects shape booking patterns.</li>
+        <li>Not all holidays significantly impact demand; the effect is complex and non-trivial to model.</li>
+      </ul>
+      <hr class="section-divider">
+
+      <h2>The Hackathon Challenge</h2>
+      <p>
+        Using the historical booking and search data provided, predict the total number of seats booked for each route exactly 15 days before the date of journey. For example, for a route with doj = 30-Jan-2025, predict the final seat count on 16-Jan-2025 (15 days prior).
+      </p>
+
+      <h2>Allowed & Disallowed External Data</h2>
+      <ul>
+        <li><strong>Not allowed</strong>: Any similar dataset from public repositories or other aggregators that contain seat booking information.</li>
+        <li><strong>Allowed</strong>: Other external data such as public holiday calendars, events, and regional holiday information may be used.</li>
+      </ul>
+
+      <h2>Modeling Tools & Rules</h2>
+      <ul>
+        <li>Language: <strong>Python</strong> only.</li>
+        <li>Open-source libraries and frameworks are permitted.</li>
+      </ul>
+
+      <h2>Ethics & Compliance</h2>
+      <ul>
+        <li>Plagiarism or unethical behaviour will lead to disqualification.</li>
+        <li>Fair play is expected throughout the event.</li>
+      </ul>
+
+      <h2>Data Dictionary</h2>
+
+      <h3>1) train.csv</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th>Variable</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>doj</code></td><td>Date of Journey (travel date)</td></tr>
+          <tr><td><code>srcid</code></td><td>Source City ID (unique identifier)</td></tr>
+          <tr><td><code>destid</code></td><td>Destination City ID (unique identifier)</td></tr>
+          <tr><td><code>final_seatcount</code></td><td>Target: total seats booked at journey end</td></tr>
+        </tbody>
+      </table>
+
+      <h3>2) test.csv</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th>Variable</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>route_key</code></td><td>Unique identifier for the test row</td></tr>
+          <tr><td><code>doj</code></td><td>Date of Journey</td></tr>
+          <tr><td><code>srcid</code></td><td>Source City ID</td></tr>
+          <tr><td><code>destid</code></td><td>Destination City ID</td></tr>
+        </tbody>
+      </table>
+
+      <h3>3) transactions.csv</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th>Variable</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>doj</code></td><td>Date of Journey</td></tr>
+          <tr><td><code>doi</code></td><td>Date of Issue (booking date)</td></tr>
+          <tr><td><code>dbd</code></td><td>Days Before Departure (doj - doi)</td></tr>
+          <tr><td><code>srcid</code></td><td>Source City ID</td></tr>
+          <tr><td><code>destid</code></td><td>Destination City ID</td></tr>
+          <tr><td><code>srcid_region</code></td><td>Region (state) of source</td></tr>
+          <tr><td><code>destid_region</code></td><td>Region (state) of destination</td></tr>
+          <tr><td><code>srcid_tier</code></td><td>Tier classification for source city</td></tr>
+          <tr><td><code>destid_tier</code></td><td>Tier classification for destination city</td></tr>
+          <tr><td><code>cumsum_seatcount</code></td><td>Cumulative seats sold till date</td></tr>
+          <tr><td><code>cumsum_searchcount</code></td><td>Cumulative searches till date</td></tr>
+        </tbody>
+      </table>
+
+      <h3>4) submission_file.csv</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th>Variable</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>route_key</code></td><td>Unique identifier for the test row</td></tr>
+          <tr><td><code>final_seatcount</code></td><td>Predicted final seatcount (target)</td></tr>
+        </tbody>
+      </table>
+
+      <p style="margin-top:16px;opacity:0.9">Good luck! Follow the evaluation metric (SMAPE) closely and document feature engineering decisions. If you'd like, I can add a starter notebook and link the datasets from the project repository.</p>
+    </section>
+  </main>
+</div>
+
+</body>
+</html>

@@ -1,97 +1,288 @@
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    margin: 0;
-    padding: 0;
-    background: linear-gradient(135deg, #74ABE2, #5563DE);
-    color: #fff;
+*{box-sizing:border-box}
+
+/* Import professional UI font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
+:root{
+  --bg-1: #0f2027;
+  --bg-2: #203a43;
+  --card-bg: rgba(255,255,255,0.045);
+  --muted-border: rgba(255,255,255,0.06);
+  --text-main: #e8f6ff;
+  --text-muted: #cfe8ff;
+  --accent: #0a6bff;
+  --danger: #ff416c;
 }
 
-header {
-    background-color: rgba(0,0,0,0.6);
-    padding: 20px;
-    text-align: center;
-    font-size: 2em;
-    font-weight: bold;
-    letter-spacing: 1px;
+body{
+  margin:0;
+  min-height:100vh;
+  font-family:Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background:linear-gradient(135deg,var(--bg-1),var(--bg-2));
+  color:var(--text-main);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
 }
 
-nav {
-    display: flex;
-    justify-content: center;
-    background-color: rgba(0,0,0,0.4);
+header{
+  text-align:center;
+  padding:25px;
+  font-size:2.2em;
 }
 
-nav a {
-    color: #fff;
-    text-decoration: none;
-    padding: 15px 25px;
-    font-weight: bold;
+nav{
+  display:flex;
+  justify-content:center;
+  gap:30px;
+  padding:15px;
 }
 
-nav a:hover {
-    background-color: rgba(255,255,255,0.2);
-    border-radius: 5px;
+nav a{
+  color:#fff;
+  font-weight:bold;
+  text-decoration:none;
 }
 
-section {
-    padding: 50px;
-    min-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+.card{
+  width:100%;
+  max-width:1120px; /* keep content centered and readable */
+  margin:30px auto;
+  padding:28px;
+  background:var(--card-bg);
+  border-radius:12px;
+  backdrop-filter:blur(6px);
+  animation:fade 0.6s ease;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.45);
 }
 
-h1,h2,h3 {
-    margin-bottom: 20px;
-    text-align: center;
+/* App shell and sidebar */
+.app-shell{display:flex;gap:24px;align-items:stretch;min-height:80vh;padding:18px 0}
+.sidebar{width:240px;background:linear-gradient(180deg,#081226,#0d2638);border-radius:12px;padding:18px;color:#dfeffe;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+.brand{font-weight:800;margin-bottom:18px}
+.side-nav{display:flex;flex-direction:column;gap:10px}
+.side-nav a{display:flex;align-items:center;gap:12px;padding:10px;border-radius:8px;color:var(--text-muted);text-decoration:none;font-weight:600}
+.side-nav a.active{background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));color:var(--text-main)}
+.side-nav a:hover{background:rgba(255,255,255,0.02);color:var(--text-main)}
+.signout{margin-top:20px;background:#ff385c;color:#fff;padding:10px;border-radius:10px;text-align:center;cursor:pointer}
+
+.main-content{flex:1}
+
+/* Hero section for index */
+.hero{display:flex;gap:24px;align-items:center;padding:28px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.04));}
+.hero h1{margin:0;font-size:1.9rem;color:var(--text-main)}
+.hero p{opacity:.95;color:var(--text-muted);line-height:1.5}
+.feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
+.feature{background:rgba(255,255,255,0.03);padding:18px;border-radius:12px}
+
+/* Data dictionary / problem page table styles */
+.data-table{width:100%;border-collapse:collapse;margin-top:12px;background:transparent;border-radius:8px;overflow:hidden;border:1px solid var(--muted-border)}
+.data-table thead th{background:rgba(0,0,0,0.18);padding:14px 18px;text-align:left;border-bottom:1px solid var(--muted-border);font-weight:700;color:var(--text-main);letter-spacing:0.2px;text-transform:none}
+.data-table tbody td{padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.03);vertical-align:middle;color:var(--text-muted)}
+.data-table tbody tr:nth-child(odd){background:transparent}
+.data-table tbody td:nth-child(1){width:30%;font-weight:700;color:var(--text-main)}
+.data-table tbody td:nth-child(2){width:70%;color:var(--text-muted)}
+
+/* Lead paragraph and section divider styles for inside cards */
+.main-content .card.full p.lead{
+  font-size:1.06rem;
+  color:var(--text-muted);
+  line-height:1.75;
+  margin-bottom:18px;
 }
 
-input, button {
-    padding: 10px;
-    margin: 5px;
-    border-radius: 5px;
-    border: none;
-    outline: none;
-    font-size: 1em;
+.section-divider{height:1px;border:none;margin:18px 0;background:linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent)}
+
+/* H2 accent bar to improve section hierarchy */
+.main-content .card.full h2{
+  border-left:4px solid rgba(10,107,255,0.12);
+  padding-left:12px;
+  margin-top:18px;
+  padding-top:6px;
 }
 
-button {
-    background-color: #FFC107;
-    color: #000;
-    font-weight: bold;
-    cursor: pointer;
-    transition: 0.3s;
+code{background:rgba(255,255,255,0.03);padding:2px 6px;border-radius:6px;color:var(--text-main);font-family:SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:0.95rem}
+
+/* Slightly larger headings for problem page */
+.main-content .card.full h1{font-size:1.6rem;margin-bottom:8px;color:var(--text-main)}
+.main-content .card.full h2{font-size:1.2rem;margin-top:12px;color:var(--text-main);font-weight:700;margin-bottom:8px}
+.main-content .card.full h3{font-size:1rem;margin-top:10px;color:var(--text-main)}
+
+/* Submission page styling */
+.submit-card{display:flex;gap:24px;align-items:flex-start}
+.submit-form{flex:2}
+.submit-panel{flex:1;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.04));padding:16px;border-radius:12px}
+.big-input{width:100%;padding:16px;border-radius:12px;border:none;margin:8px 0;background:rgba(255,255,255,0.03);color:#fff}
+.primary-btn{background:linear-gradient(90deg,#0a6bff,#00c3ff);padding:12px 16px;border-radius:10px;color:white;font-weight:700;border:none;cursor:pointer}
+.primary-btn:active{transform:translateY(1px)}
+
+/* small UI bits */
+.pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);font-weight:700;color:#cfe8ff}
+.level{background:linear-gradient(90deg,#7b61ff,#ff61a6);padding:6px 10px;border-radius:8px;color:white;font-weight:700}
+
+/* leaderboard tweaks */
+.team-meta{font-size:0.82rem;color:rgba(255,255,255,0.72)}
+.team-row .left{display:flex;align-items:center;gap:12px}
+.team-row .right{display:flex;flex-direction:column;align-items:flex-end}
+.team-row .right .accuracy{font-weight:700;color:#ffd36b}
+
+/* Leaderboard table styles */
+.lb-table{width:100%;border-collapse:collapse;margin-top:12px;border:1px solid var(--muted-border);border-radius:8px;overflow:hidden}
+.lb-table thead th{background:rgba(0,0,0,0.12);padding:12px;text-align:left;border-bottom:1px solid var(--muted-border);color:var(--text-main);font-weight:700}
+.lb-table tbody td{padding:12px;border-bottom:1px solid rgba(255,255,255,0.02);color:var(--text-muted)}
+.lb-table tbody tr.highlight{background:linear-gradient(90deg, rgba(10,107,255,0.10), rgba(0,195,255,0.04));}
+.lb-table tbody tr:hover{background:rgba(255,255,255,0.02)}
+.lb-rank{width:80px;font-weight:800;text-align:left;color:var(--text-main)}
+.lb-name{font-weight:700;color:var(--text-main)}
+.lb-smape{text-align:right;width:160px;font-weight:800;color:var(--text-main)}
+
+.leaderboard-list{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
 }
 
-button:hover {
-    background-color: #FFA000;
+.team-row{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  padding:18px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.06));
+  border-radius:12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
 }
 
-table {
-    border-collapse: collapse;
-    width: 80%;
-    margin-top: 20px;
-    background-color: rgba(255,255,255,0.1);
+.rank-badge{
+  min-width:68px;
+  text-align:center;
+  font-weight:700;
+  font-size:1.1rem;
 }
 
-th, td {
-    border: 1px solid rgba(255,255,255,0.3);
-    padding: 12px;
-    text-align: center;
+.avatar{
+  width:56px;
+  height:56px;
+  border-radius:50%;
+  background:linear-gradient(135deg,#4b6cb7,#182848);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  color:#fff;
+  font-weight:700;
 }
 
-th {
-    background-color: rgba(255,255,255,0.2);
-    font-weight: bold;
+.team-info{
+  flex:1;
 }
 
-tr:nth-child(even) {
-    background-color: rgba(0,0,0,0.2);
+.team-name{
+  font-size:1.05rem;
+  font-weight:700;
 }
 
-footer {
-    background-color: rgba(0,0,0,0.6);
-    text-align: center;
-    padding: 15px;
+.team-meta{
+  font-size:0.85rem;
+  color:rgba(255,255,255,0.7);
+}
+
+.team-score{
+  min-width:120px;
+  text-align:right;
+  font-weight:700;
+}
+
+.show-more{
+  display:block;
+  margin:18px auto 0;
+  padding:12px 18px;
+  background:linear-gradient(90deg,#0062ff,#00c3ff);
+  border-radius:12px;
+  text-align:center;
+  color:white;
+  width:60%;
+  cursor:pointer;
+}
+
+.team-position{
+  position:fixed;
+  left:50%;
+  transform:translateX(-50%);
+  bottom:18px;
+  width:85%;
+  max-width:1100px;
+  background:linear-gradient(90deg, rgba(255,255,255,0.04), rgba(0,0,0,0.12));
+  border-radius:12px;
+  padding:14px 18px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.6);
+  display:flex;
+  gap:16px;
+  align-items:center;
+}
+
+.hidden{display:none}
+
+@media (max-width: 900px){
+  .app-shell{flex-direction:column;padding:8px}
+  .sidebar{width:100%;display:flex;justify-content:space-between;align-items:center}
+  .main-content{width:100%}
+  .feature-grid{grid-template-columns:1fr}
+  .team-row{flex-direction:column;align-items:flex-start}
+  .team-row .right{align-self:stretch;text-align:right;width:100%;display:flex;justify-content:space-between}
+}
+
+@media (max-width: 640px){
+  .card{padding:18px;margin:18px}
+  .data-table thead th{padding:10px}
+  .data-table tbody td{padding:10px}
+  .main-content .card.full p.lead{font-size:1rem}
+  .side-nav a{padding:8px;font-size:0.95rem}
+}
+
+.full{
+  min-height:60vh;
+}
+
+input,button{
+  padding:12px;
+  margin:8px;
+  border:none;
+  border-radius:8px;
+}
+
+button{
+  background:linear-gradient(135deg,#ffb347,#ffcc33);
+  cursor:pointer;
+}
+
+button:hover{
+  transform:translateY(-2px);
+}
+
+.danger{
+  background:linear-gradient(135deg,#ff416c,#ff4b2b);
+  color:white;
+}
+
+table{
+  width:100%;
+  margin-top:15px;
+  border-collapse:collapse;
+}
+
+th,td{
+  padding:12px;
+  text-align:center;
+}
+
+tr:hover{
+  background:rgba(255,255,255,0.15);
+}
+
+footer{
+  text-align:center;
+  padding:15px;
+}
+
+@keyframes fade{
+  from{opacity:0;transform:translateY(20px);}
+  to{opacity:1;}
 }

@@ -1,45 +1,135 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Submit Prediction</title>
-    <link rel="stylesheet" href="style.css">
+  <title>Submit Prediction</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>Submit Your Prediction</header>
 
-<nav>
-    <a href="index.html">Home</a>
-    <a href="upload.html">Submit Solution</a>
-    <a href="leaderboard.html">Leaderboard</a>
-</nav>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">Hack-like SMAPE</div>
+    <nav class="side-nav">
+      <a href="problem.html">Problem Statement</a>
+      <a href="index.html">Dashboard</a>
+      <a class="active" href="upload.html">Submissions</a>
+      <a href="leaderboard.html">Leaderboard</a>
+    </nav>
+  </aside>
 
-<section>
-    <h2>Upload Your CSV Prediction</h2>
-    <input type="text" id="userName" placeholder="Enter Your Name" />
-    <input type="file" id="fileInput" accept=".csv" />
-    <button onclick="upload()">Submit</button>
-    <p id="result"></p>
-</section>
+  <main class="main-content">
+    <header style="margin-bottom:14px">📤 Submit Prediction</header>
 
-<footer>© 2025 SMAPE Leaderboard Platform</footer>
+    <section class="card full submit-card">
+      <div class="submit-form">
+        <h2>Submit CSV</h2>
+        <p>Upload your prediction CSV. We'll compute SMAPE and add your submission to the live leaderboard.</p>
+
+        <div style="margin-top:12px">
+          <input id="userName" class="big-input" placeholder="Enter your team name">
+          <input type="file" id="csvFile" class="big-input" accept=".csv" onchange="previewCSV()">
+          <div style="display:flex;gap:12px;align-items:center">
+            <button class="primary-btn" onclick="submitFile()">Run & Submit</button>
+          </div>
+          <p id="status"></p>
+        </div>
+
+        <h3>CSV Preview (First 5 Lines)</h3>
+        <table>
+          <tbody id="preview"></tbody>
+        </table>
+      </div>
+
+      <aside class="submit-panel">
+        <h3>Submission History</h3>
+        <table>
+          <thead>
+            <tr><th>#</th><th>SMAPE</th><th>Time</th></tr>
+          </thead>
+          <tbody id="history"></tbody>
+        </table>
+      </aside>
+    </section>
+  </main>
+</div>
 
 <script>
-async function upload() {
-    const userName = document.getElementById("userName").value;
-    const file = document.getElementById("fileInput").files[0];
-    if(!userName || !file) { alert("Enter name and file"); return; }
+function previewCSV() {
+  const fileInput = document.getElementById("csvFile");
+  const file = fileInput.files[0];
+  if (!file) return;
 
-    const formData = new FormData();
-    formData.append("user_name", userName);
-    formData.append("file", file);
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const lines = e.target.result.split("\n").slice(0, 5);
+    const preview = document.getElementById("preview");
+    preview.innerHTML = "";
 
-    const res = await fetch("/upload", { method: "POST", body: formData });
+    lines.forEach(line => {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.innerText = line;
+      tr.appendChild(td);
+      preview.appendChild(tr);
+    });
+  };
+  reader.readAsText(file);
+}
+
+async function submitFile() {
+  const userName = document.getElementById("userName").value.trim();
+  const fileInput = document.getElementById("csvFile");
+  const file = fileInput.files[0];
+  const status = document.getElementById("status");
+
+  if (!userName || !file) {
+    alert("Please enter your name and select a CSV file");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("user_name", userName);
+  formData.append("file", file);
+
+  status.innerText = "Uploading...";
+
+  try {
+    const res = await fetch("/upload", {
+      method: "POST",
+      body: formData
+    });
+
     const data = await res.json();
 
-    const resultEl = document.getElementById("result");
-    if(data.error) resultEl.innerText = "Error: " + data.error;
-    else resultEl.innerText = `Hello ${userName}, your SMAPE Score: ${data.smape}%`;
+    if (data.error) {
+      status.innerText = "Error: " + data.error;
+    } else {
+      status.innerText = `✅ Submitted successfully. SMAPE: ${data.smape}`;
+      loadHistory(userName);
+    }
+  } catch (err) {
+    status.innerText = "Upload failed!";
+  }
+}
+
+async function loadHistory(userName) {
+  const res = await fetch(`/user/${userName}`);
+  const data = await res.json();
+
+  const history = document.getElementById("history");
+  history.innerHTML = "";
+
+  data.forEach((row, index) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${index + 1}</td>
+      <td>${row.smape}</td>
+      <td>${row.timestamp}</td>
+    `;
+    history.appendChild(tr);
+  });
 }
 </script>
+
 </body>
 </html>
