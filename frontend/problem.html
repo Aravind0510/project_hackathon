@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Problem Statement</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-icon">⚙️</span>TechnoForge</div>
+    <nav class="side-nav">
+      <a href="index.html"><span class="nav-icon">🏠</span>Dashboard</a>
+      <a class="active" href="problem.html"><span class="nav-icon">📄</span>Problem Statement</a>
+      <a href="upload.html"><span class="nav-icon">📤</span>Submissions</a>
+      <a href="leaderboard.html"><span class="nav-icon">🏆</span>Leaderboard</a>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <section class="card full">
+      <h1>📊 Inter-City Service Demand Forecasting Challenge</h1>
+
+      <h2>Background</h2>
+      <p class="lead">
+        A large-scale Inter-City Service Management Platform operates scheduled services between multiple operational hubs across different regions. These services represent standardized inter-hub operations such as managed transfers, capacity allocations, or pre-planned service windows.
+      </p>
+      <p>Prior to each scheduled service date, users interact with the platform by:</p>
+      <ul>
+        <li>Exploring available services</li>
+        <li>Generating interest signals</li>
+        <li>Making advance commitments over time</li>
+      </ul>
+      <p>These interactions provide early indicators of eventual service utilization. However, demand patterns are influenced by multiple factors such as calendar effects, seasonal variations, regional characteristics, and lead-time behavior. Importantly, not all temporal or regional factors impact demand uniformly, making accurate forecasting a complex and non-trivial problem.</p>
+      <hr class="section-divider">
+
+      <h2>🎯 Problem Objective</h2>
+      <p class="lead">
+        The objective of this challenge is to develop a machine learning model that accurately forecasts final service demand for scheduled inter-city services.
+      </p>
+      <h3>Forecasting Requirement</h3>
+      <p>For each service defined by an origin hub, destination hub, and scheduled service date, participants must predict the final number of service units consumed, <strong>15 days before the scheduled service date</strong>.</p>
+      <h3>Example</h3>
+      <p>If a service between Hub A → Hub B is scheduled on 30-Jan-2025, the model must predict the final service utilization using only the data available up to 15-Jan-2025.</p>
+      <hr class="section-divider">
+
+      <h2>📦 Provided Datasets</h2>
+      <p>Participants are provided with historical data from the platform, consisting of both aggregated service records and interaction-level logs.</p>
+      <p>The datasets include:</p>
+      <ul>
+        <li>Scheduled service dates</li>
+        <li>Origin and destination hub identifiers</li>
+        <li>Regional and tier-level attributes</li>
+        <li>Time-dependent cumulative demand signals</li>
+        <li>Final realized service consumption</li>
+      </ul>
+      <hr class="section-divider">
+
+      <h2>🧠 Key Challenges</h2>
+      <p>Participants are expected to model:</p>
+      <ul>
+        <li>The relationship between early interest signals and final service utilization</li>
+        <li>Demand accumulation patterns as the service date approaches</li>
+        <li>Regional and hub-level behavioral differences</li>
+        <li>Lead-time effects on forecasting accuracy</li>
+      </ul>
+      <hr class="section-divider">
+
+      <h2>🔒 External Data Usage Policy</h2>
+      <h3>Allowed</h3>
+      <ul>
+        <li>Publicly available calendar information</li>
+        <li>General seasonal or regional indicators</li>
+        <li>Non-commercial datasets related to time or geography</li>
+      </ul>
+      <h3>Not Allowed</h3>
+      <ul>
+        <li>Proprietary service consumption datasets</li>
+        <li>Data from competing or similar platforms</li>
+        <li>Any form of reverse-engineered or leaked data</li>
+      </ul>
+      <hr class="section-divider">
+
+      <h2>🧰 Modelling Rules</h2>
+      <ul>
+        <li><strong>Programming Language:</strong> Python only</li>
+        <li><strong>Libraries:</strong> Open-source libraries and frameworks are permitted</li>
+        <li><strong>Approach:</strong> Any machine learning, deep learning, or statistical method is allowed</li>
+      </ul>
+      <hr class="section-divider">
+
+      <h2>⚖️ Ethics & Compliance</h2>
+      <ul>
+        <li>Plagiarism or unethical behavior will result in disqualification</li>
+        <li>Participants must develop models independently</li>
+        <li>Fair play and transparency are expected throughout the competition</li>
+      </ul>
+      <hr class="section-divider">
+
+      <h2>📘 Dataset Schema</h2>
+
+      <h3>1. train.csv</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th><center>Column Name</center></th><th><center>Description</center></th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>service_date</code></td><td>Scheduled date of the inter-city service</td></tr>
+          <tr><td><code>origin_hub_id</code></td><td>Unique identifier for the origin hub</td></tr>
+          <tr><td><code>destination_hub_id</code></td><td>Unique identifier for the destination hub</td></tr>
+          <tr><td><code>final_service_units</code></td><td>Total service units consumed after service completion (Target Variable)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>2. test.csv</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th><center>Column Name</center></th><th><center>Description</center></th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>service_key</code></td><td>Unique identifier for each service</td></tr>
+          <tr><td><code>service_date</code></td><td>Scheduled date of the service</td></tr>
+          <tr><td><code>origin_hub_id</code></td><td>Origin hub identifier</td></tr>
+          <tr><td><code>destination_hub_id</code></td><td>Destination hub identifier</td></tr>
+        </tbody>
+      </table>
+
+      <h3>3. interactions.csv</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th><center>Column Name</center></th><th><center>Description</center></th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>service_date</code></td><td>Scheduled service date</td></tr>
+          <tr><td><code>interaction_date</code></td><td>Date of user interaction</td></tr>
+          <tr><td><code>origin_hub_id</code></td><td>Origin hub identifier</td></tr>
+          <tr><td><code>destination_hub_id</code></td><td>Destination hub identifier</td></tr>
+          <tr><td><code>origin_region</code></td><td>Region of the origin hub</td></tr>
+          <tr><td><code>destination_region</code></td><td>Region of the destination hub</td></tr>
+          <tr><td><code>origin_hub_tier</code></td><td>Tier classification of the origin hub</td></tr>
+          <tr><td><code>destination_hub_tier</code></td><td>Tier classification of the destination hub</td></tr>
+          <tr><td><code>cumulative_commitments</code></td><td>Cumulative service units committed till date</td></tr>
+          <tr><td><code>cumulative_interest_signals</code></td><td>Cumulative user interest signals till date</td></tr>
+          <tr><td><code>days_before_service</code></td><td>Number of days remaining until the service date</td></tr>
+        </tbody>
+      </table>
+
+      <h3>4. submission_file.csv</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th><center>Column Name</center></th><th><center>Description</center></th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>service_key</code></td><td>Unique identifier for the service</td></tr>
+          <tr><td><code>final_service_units</code></td><td>Predicted total service units consumed</td></tr>
+        </tbody>
+      </table>
+      <hr class="section-divider">
+
+      <h2>✅ Final Note</h2>
+      <p class="lead">This challenge emphasizes early demand forecasting, time-aware modeling, and behavioral signal interpretation, reflecting real-world enterprise planning and decision-making systems.</p>
+      
+      <div style="margin-top:32px;padding:24px;background:linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(16,185,129,0.08) 100%);border-radius:14px;border:1px solid rgba(59,130,246,0.2);text-align:center">
+        <p style="margin:0 0 16px 0;font-size:1.1rem;color:var(--text-main)">Ready to start forecasting?</p>
+        <a href="upload.html" class="primary-btn" style="text-decoration:none;display:inline-block">🚀 Submit Your Prediction</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+</body>
+</html>

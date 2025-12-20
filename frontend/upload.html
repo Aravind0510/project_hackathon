@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Submit Prediction</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-icon">⚙️</span>TechnoForge</div>
+    <nav class="side-nav">
+       <a href="index.html"><span class="nav-icon">🏠</span>Dashboard</a>
+      <a href="problem.html"><span class="nav-icon">📄</span>Problem Statement</a>
+      <a class="active" href="upload.html"><span class="nav-icon">📤</span>Submissions</a>
+      <a href="leaderboard.html"><span class="nav-icon">🏆</span>Leaderboard</a>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <header style="margin-bottom:20px">📤 Submit Your Prediction</header>
+
+    <section class="card full submit-card">
+      <div class="submit-form">
+        <h2>Upload CSV File</h2>
+        <p style="color:var(--text-muted);line-height:1.6">Upload your prediction CSV file. We'll compute the Metric Score and add your submission to the live leaderboard.</p>
+
+        <div style="margin-top:20px">
+          <input id="userName" class="big-input" placeholder="👤 Enter your team name">
+          <input type="file" id="csvFile" class="big-input" accept=".csv" onchange="previewCSV()">
+          <div style="display:flex;gap:12px;align-items:center;margin-top:8px">
+            <button id="submitBtn" class="primary-btn" onclick="submitFile()" disabled>🚀 Run & Submit</button>
+          </div>
+          <p id="status"></p>
+          <h3 class="hidden" id="previewTitle">📋 CSV Preview</h3>
+          <div id="previewContainer" class="hidden" style="overflow:auto">
+            <table id="previewTable" class="lb-table">
+              <thead id="previewHead"></thead>
+              <tbody id="preview"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <aside class="submit-panel">
+        <h3>📜 Submission History</h3>
+        <table id="historyTable">
+          <thead>
+            <tr><th>#</th><th>Team</th><th>Score</th><th>Time</th></tr>
+          </thead>
+          <tbody id="history"></tbody>
+        </table>
+        <p id="noHistory" style="opacity:0.7;font-size:0.9rem;text-align:center;margin-top:20px">No submissions yet.</p>
+      </aside>
+    </section>
+  </main>
+</div>
+
+<script>
+function previewCSV() {
+  const fileInput = document.getElementById("csvFile");
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const text = e.target.result.replace(/\r\n/g,'\n').trim();
+    if(!text){ return }
+    const lines = text.split("\n").slice(0, 6); // first line may be header + 5 rows
+    const preview = document.getElementById("preview");
+    const previewHead = document.getElementById('previewHead');
+    const previewContainer = document.getElementById('previewContainer');
+    const previewTitle = document.getElementById('previewTitle');
+    const submitBtn = document.getElementById('submitBtn');
+    preview.innerHTML = "";
+    previewHead.innerHTML = '';
+
+    // detect header: if first line contains comma and looks like headers
+    const first = lines[0];
+    const hasHeader = first && first.includes(',');
+
+    if(hasHeader){
+      const headers = first.split(',').map(h=>h.trim());
+      const headRow = document.createElement('tr');
+      headers.forEach(h=>{
+        const th = document.createElement('th');
+        th.innerText = h || '-';
+        headRow.appendChild(th);
+      });
+      previewHead.appendChild(headRow);
+
+      // render next up to 5 rows
+      lines.slice(1).forEach(line=>{
+        const cells = line.split(',');
+        const tr = document.createElement('tr');
+        cells.forEach(c=>{ const td=document.createElement('td'); td.innerText = c.trim(); tr.appendChild(td); });
+        preview.appendChild(tr);
+      });
+      if(previewContainer) previewContainer.classList.remove('hidden');
+      if(previewTitle) previewTitle.classList.remove('hidden');
+      if(submitBtn) submitBtn.disabled = false;
+    } else {
+      // fallback: single-column rows
+      const headRow = document.createElement('tr');
+      const th = document.createElement('th'); th.innerText = 'Row'; headRow.appendChild(th);
+      previewHead.appendChild(headRow);
+      lines.forEach(line=>{
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.innerText = line;
+        tr.appendChild(td);
+        preview.appendChild(tr);
+      });
+      if(previewContainer) previewContainer.classList.remove('hidden');
+      if(previewTitle) previewTitle.classList.remove('hidden');
+      if(submitBtn) submitBtn.disabled = false;
+    }
+  };
+  reader.readAsText(file);
+}
+
+// hide preview and disable submit if user clears file input
+document.getElementById('csvFile').addEventListener('change', function(){
+  const previewContainer = document.getElementById('previewContainer');
+  const previewTitle = document.getElementById('previewTitle');
+  const submitBtn = document.getElementById('submitBtn');
+  if(!this.files || this.files.length === 0){
+    if(previewContainer) previewContainer.classList.add('hidden');
+    if(previewTitle) previewTitle.classList.add('hidden');
+    if(submitBtn) submitBtn.disabled = true;
+  }
+});
+
+async function submitFile() {
+  const userName = document.getElementById("userName").value.trim();
+  const fileInput = document.getElementById("csvFile");
+  const file = fileInput.files[0];
+  const status = document.getElementById("status");
+
+  if (!userName || !file) {
+    alert("Please enter your name and select a CSV file");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("user_name", userName);
+  formData.append("file", file);
+
+  status.innerText = "Uploading...";
+  const submitBtn = document.getElementById('submitBtn');
+  if(submitBtn) submitBtn.disabled = true;
+
+  try {
+    const res = await fetch("/upload", {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+      status.innerText = "Error: " + data.error;
+      if(submitBtn) submitBtn.disabled = false;
+    } else {
+      const timestamp = new Date().toLocaleString();
+      status.innerText = `✅ Submitted successfully. Metric Score: ${data.smape}`;
+      addToHistory(userName, data.smape, timestamp);
+      // show a brief celebration
+      showCelebration();
+      if(submitBtn) submitBtn.disabled = false;
+    }
+  } catch (err) {
+    status.innerText = "Upload failed!";
+    const submitBtn = document.getElementById('submitBtn');
+    if(submitBtn) submitBtn.disabled = false;
+  }
+}
+
+function showCelebration(){
+  const container = document.getElementById('celebration');
+  if(!container) return;
+  const colors = ['#0a6bff','#00c3ff','#6ae3b8','#ffd36b','#ff7aa2'];
+  const count = 12;
+  for(let i=0;i<count;i++){
+    const b = document.createElement('div');
+    b.className = 'balloon';
+    const size = 28 + Math.round(Math.random()*36);
+    b.style.width = size+'px'; b.style.height = Math.round(size*1.25)+'px';
+    b.style.left = Math.round(Math.random()*90)+'%';
+    b.style.background = colors[i % colors.length];
+    const dur = 3000 + Math.round(Math.random()*3000);
+    b.style.animationDuration = dur+'ms';
+    b.style.animationDelay = Math.round(Math.random()*300)+'ms';
+    container.appendChild(b);
+    // cleanup
+    setTimeout(()=>{ b.remove(); }, dur + 800);
+  }
+}
+
+// Session ID - unique per browser, persisted in localStorage
+let sessionId = localStorage.getItem('sessionId');
+if (!sessionId) {
+  sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  localStorage.setItem('sessionId', sessionId);
+}
+
+// Session submissions storage - loaded from database
+let sessionSubmissions = [];
+
+async function loadHistoryFromDB() {
+  try {
+    const res = await fetch(`/history/${sessionId}`);
+    sessionSubmissions = await res.json();
+    renderHistory();
+  } catch (err) {
+    console.error('Failed to load history:', err);
+  }
+}
+
+async function addToHistory(teamName, score, timestamp) {
+  try {
+    const formData = new FormData();
+    formData.append('team', teamName);
+    formData.append('smape', score);
+    formData.append('timestamp', timestamp);
+    
+    await fetch(`/history/${sessionId}`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    sessionSubmissions.push({ team: teamName, smape: score, timestamp: timestamp });
+    renderHistory();
+  } catch (err) {
+    console.error('Failed to save history:', err);
+  }
+}
+
+function renderHistory() {
+  const history = document.getElementById("history");
+  const historyTable = document.getElementById("historyTable");
+  const noHistory = document.getElementById("noHistory");
+  
+  history.innerHTML = "";
+  
+  if (sessionSubmissions.length === 0) {
+    if(historyTable) historyTable.classList.add('hidden');
+    if(noHistory) noHistory.classList.remove('hidden');
+  } else {
+    if(noHistory) noHistory.classList.add('hidden');
+    if(historyTable) historyTable.classList.remove('hidden');
+    
+    sessionSubmissions.forEach((row, index) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${index + 1}</td>
+        <td>${row.team}</td>
+        <td>${row.smape}</td>
+        <td>${row.timestamp}</td>
+      `;
+      history.appendChild(tr);
+    });
+  }
+}
+
+// Initialize history display from database
+loadHistoryFromDB();
+
+</script>
+
+<div id="celebration" class="celebration"></div>
+
+</body>
+</html>
