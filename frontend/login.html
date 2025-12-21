@@ -76,7 +76,7 @@ function togglePassword() {
 // Check if already logged in via database
 (async function() {
   try {
-    const res = await fetch('/auth/me');
+    const res = await fetch('/auth/me', {credentials: 'same-origin'});
     const data = await res.json();
     if (data.authenticated) {
       window.location.href = 'index.html';

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, Form, Response, Request, Cookie
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 import pandas as pd
 import numpy as np
 import tempfile, os
@@ -51,14 +51,15 @@ def init_db():
             timestamp TEXT NOT NULL
         )
     ''')
-    # Create teams table for authentication
+    # Create teams table for authentication (adds is_admin flag)
     conn.execute('''
         CREATE TABLE IF NOT EXISTS teams (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             team_id TEXT UNIQUE NOT NULL,
             team_name TEXT NOT NULL,
             password_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            is_admin INTEGER DEFAULT 0
         )
     ''')
     # Create auth tokens table
@@ -71,9 +72,22 @@ def init_db():
         )
     ''')
     conn.commit()
-    
-    # Insert test teams if they don't exist
+
+    # Ensure is_admin column exists for older DBs
     try:
+        info = conn.execute("PRAGMA table_info(teams)").fetchall()
+        if not any(col[1] == 'is_admin' for col in info):
+            conn.execute("ALTER TABLE teams ADD COLUMN is_admin INTEGER DEFAULT 0")
+            conn.commit()
+    except Exception:
+        pass
+    
+    # Insert test teams if they don't exist (also create an admin account)
+    try:
+        conn.execute(
+            'INSERT OR IGNORE INTO teams (team_id, team_name, password_hash, created_at, is_admin) VALUES (?, ?, ?, ?, ?)',
+            ('admin', 'Administrator', hash_password('adminpass'), datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 1)
+        )
         conn.execute(
             'INSERT OR IGNORE INTO teams (team_id, team_name, password_hash, created_at) VALUES (?, ?, ?, ?)',
             ('1234', 'Team Alpha', hash_password('password123'), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -147,8 +161,17 @@ def user_history(name: str):
     return [{"id": r["id"], "user": r["user"], "smape": r["smape"], "timestamp": r["timestamp"]} for r in rows]
 
 @app.post("/leaderboard/reset")
-def reset():
+def reset(auth_token: Optional[str] = Cookie(None)):
+    if not auth_token:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
     conn = get_db_connection()
+    auth = conn.execute(
+        'SELECT t.team_id, t.team_name, t.is_admin FROM auth_tokens a JOIN teams t ON a.team_id = t.team_id WHERE a.token = ?',
+        (auth_token,)
+    ).fetchone()
+    if not auth or not auth["is_admin"]:
+        conn.close()
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
     conn.execute('DELETE FROM submissions')
     conn.commit()
     conn.close()
@@ -243,13 +266,13 @@ def get_current_user(auth_token: Optional[str] = Cookie(None)):
     
     conn = get_db_connection()
     auth = conn.execute(
-        'SELECT t.team_id, t.team_name FROM auth_tokens a JOIN teams t ON a.team_id = t.team_id WHERE a.token = ?',
+        'SELECT t.team_id, t.team_name, t.is_admin FROM auth_tokens a JOIN teams t ON a.team_id = t.team_id WHERE a.token = ?',
         (auth_token,)
     ).fetchone()
     conn.close()
     
     if auth:
-        return {"authenticated": True, "team_id": auth["team_id"], "team_name": auth["team_name"]}
+        return {"authenticated": True, "team_id": auth["team_id"], "team_name": auth["team_name"], "is_admin": bool(auth["is_admin"])}
     return {"authenticated": False}
 
 @app.get("/auth/verify/{token}")
@@ -274,4 +297,20 @@ def get_teams():
     return [{"team_id": t["team_id"], "team_name": t["team_name"], "created_at": t["created_at"]} for t in teams]
 
 FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
+
+@app.get("/")
+def root(auth_token: Optional[str] = Cookie(None)):
+    # Redirect to login if not authenticated, otherwise to the index page
+    if not auth_token:
+        return RedirectResponse(url="/login.html")
+    conn = get_db_connection()
+    auth = conn.execute(
+        'SELECT t.team_id FROM auth_tokens a JOIN teams t ON a.team_id = t.team_id WHERE a.token = ?',
+        (auth_token,)
+    ).fetchone()
+    conn.close()
+    if auth:
+        return RedirectResponse(url="/index.html")
+    return RedirectResponse(url="/login.html")
+
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

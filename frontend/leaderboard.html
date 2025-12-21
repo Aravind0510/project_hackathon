@@ -70,6 +70,7 @@
       </div>
 
       <button id="showMore" class="show-more" onclick="showMore()">Show More Teams</button>
+      <button id="resetBtn" class="show-more" onclick="resetBoard()" style="display:none;margin-left:8px;background:#ef4444;color:#fff;padding:10px;border-radius:10px;border:none">Reset Leaderboard</button>
     </section>
   </main>
 </div>
@@ -178,7 +179,20 @@ function updatePodium(data) {
 
 function resetBoard(){
   if(confirm("Reset leaderboard?")){
-    fetch("/leaderboard/reset",{method:"POST"}).then(()=>loadBoard());
+    fetch("/leaderboard/reset",{method:"POST", credentials:'same-origin'})
+      .then(res => {
+        if(res.status === 200){
+          loadBoard();
+          alert('Leaderboard reset');
+        } else if(res.status === 403){
+          alert('Forbidden: Admins only');
+        } else if(res.status === 401){
+          alert('Unauthorized');
+          window.location.href = 'login.html';
+        } else {
+          res.json().then(j=>alert(j.error || 'Reset failed'));
+        }
+      }).catch(()=>alert('Reset failed'));
   }
 }
 
@@ -234,7 +248,7 @@ document.getElementById('myname').addEventListener('keydown', function(e){
 // Auth check via database
 (async function() {
   try {
-    const res = await fetch('/auth/me');
+    const res = await fetch('/auth/me', {credentials: 'same-origin'});
     const data = await res.json();
     
     if (!data.authenticated) {
@@ -245,6 +259,11 @@ document.getElementById('myname').addEventListener('keydown', function(e){
     // Update user info in sidebar
     document.getElementById('userNameDisplay').textContent = data.team_name;
     document.getElementById('userAvatar').textContent = data.team_name.charAt(0).toUpperCase();
+    // Show admin controls if user is admin
+    if (data.is_admin) {
+      const btn = document.getElementById('resetBtn');
+      if (btn) btn.style.display = 'inline-block';
+    }
   } catch (e) {
     window.location.href = 'login.html';
   }
