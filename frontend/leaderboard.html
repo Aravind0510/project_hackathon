@@ -58,6 +58,8 @@
           <input id="myname" placeholder="Search team name..." style="min-width:240px;padding:12px 16px;font-size:0.95rem;border-radius:10px" />
           <button onclick="findMe()" style="padding:12px 18px;font-size:0.95rem;border-radius:10px">🔍 Search</button>
         </div>
+        <!-- Admin Reset Button -->
+        <button id="adminResetBtn" onclick="resetLeaderboard()" style="display:none;padding:12px 18px;font-size:0.95rem;border-radius:10px;background:#ff4757;color:white;border:none;cursor:pointer">🗑️ Reset All</button>
       </div>
 
       <div style="overflow:auto;margin-top:16px">
@@ -232,6 +234,8 @@ document.getElementById('myname').addEventListener('keydown', function(e){
 });
 
 // Auth check via database
+let isAdmin = false;
+
 (async function() {
   try {
     const res = await fetch('/auth/me');
@@ -245,10 +249,51 @@ document.getElementById('myname').addEventListener('keydown', function(e){
     // Update user info in sidebar
     document.getElementById('userNameDisplay').textContent = data.team_name;
     document.getElementById('userAvatar').textContent = data.team_name.charAt(0).toUpperCase();
+    
+    // Show admin reset button if admin
+    if (data.is_admin) {
+      isAdmin = true;
+      document.getElementById('adminResetBtn').style.display = 'inline-block';
+    }
   } catch (e) {
     window.location.href = 'login.html';
   }
 })();
+
+async function resetLeaderboard() {
+  if (!isAdmin) {
+    alert('Admin access required');
+    return;
+  }
+  
+  const confirmMsg = 'Are you sure you want to reset the entire leaderboard?\n\nThis will:\n• Clear all team scores\n• Reset all submission counts\n• Delete all submission history\n\nThis action cannot be undone!';
+  
+  if (!confirm(confirmMsg)) return;
+  
+  // Double confirmation for safety
+  const doubleConfirm = prompt('Type "RESET" to confirm:');
+  if (doubleConfirm !== 'RESET') {
+    alert('Reset cancelled');
+    return;
+  }
+  
+  try {
+    const res = await fetch('/leaderboard/reset', { 
+      method: 'POST',
+      credentials: 'same-origin'
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      alert('✅ Leaderboard has been reset successfully!');
+      loadBoard();
+    } else {
+      alert('❌ Error: ' + (data.error || 'Failed to reset'));
+    }
+  } catch (e) {
+    alert('❌ Failed to reset leaderboard');
+  }
+}
 
 async function logout() {
   await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });

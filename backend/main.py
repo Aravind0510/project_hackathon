@@ -23,6 +23,7 @@ app.add_middleware(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ACTUAL_FILE = os.path.join(BASE_DIR, "actual.csv")
 DB_FILE = os.path.join(BASE_DIR, "leaderboard.db")
+MAX_SUBMISSIONS_PER_TEAM = 10
 
 def get_db_connection():
     conn = sqlite3.connect(DB_FILE)
@@ -70,6 +71,15 @@ def init_db():
             created_at TEXT NOT NULL
         )
     ''')
+    # Create team_submissions table to track all submissions per team (for limit tracking)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS team_submissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            team_id TEXT NOT NULL,
+            smape REAL NOT NULL,
+            timestamp TEXT NOT NULL
+        )
+    ''')
     conn.commit()
     
     # Insert test teams if they don't exist
@@ -82,10 +92,18 @@ def init_db():
             'INSERT OR IGNORE INTO teams (team_id, team_name, password_hash, created_at) VALUES (?, ?, ?, ?)',
             ('4321', 'Team Beta', hash_password('password456'), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         )
+        # Add admin user with unique credentials
+        conn.execute(
+            'INSERT OR IGNORE INTO teams (team_id, team_name, password_hash, created_at) VALUES (?, ?, ?, ?)',
+            ('admin2025', 'Administrator', hash_password('TechnoForge@Admin#2025'), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        )
         conn.commit()
     except:
         pass
     conn.close()
+
+# Admin team ID
+ADMIN_TEAM_ID = 'admin2025'
 
 init_db()
 
@@ -122,6 +140,17 @@ async def upload(file: UploadFile = None, auth_token: Optional[str] = Cookie(Non
     
     team_id = auth["team_id"]
     team_name = auth["team_name"]
+    
+    # Check submission limit
+    submission_count = conn.execute(
+        'SELECT COUNT(*) as count FROM team_submissions WHERE team_id = ?',
+        (team_id,)
+    ).fetchone()["count"]
+    
+    if submission_count >= MAX_SUBMISSIONS_PER_TEAM:
+        conn.close()
+        return {"error": f"Submission limit reached. Maximum {MAX_SUBMISSIONS_PER_TEAM} submissions allowed per team."}
+    
     conn.close()
     
     temp = None
@@ -155,10 +184,23 @@ async def upload(file: UploadFile = None, auth_token: Optional[str] = Cookie(Non
             )
             is_best = True
         
+        # Track this submission for limit counting
+        conn.execute(
+            'INSERT INTO team_submissions (team_id, smape, timestamp) VALUES (?, ?, ?)',
+            (team_id, score, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        )
+        
+        # Get updated submission count
+        new_count = conn.execute(
+            'SELECT COUNT(*) as count FROM team_submissions WHERE team_id = ?',
+            (team_id,)
+        ).fetchone()["count"]
+        
         conn.commit()
         conn.close()
         
-        return {"smape": score, "team_name": team_name, "is_best": is_best}
+        remaining = MAX_SUBMISSIONS_PER_TEAM - new_count
+        return {"smape": score, "team_name": team_name, "is_best": is_best, "submissions_remaining": remaining}
     except Exception as e:
         return {"error": str(e)}
     finally:
@@ -188,6 +230,31 @@ def leaderboard():
         })
     return result
 
+@app.get("/submissions/remaining")
+def get_remaining_submissions(auth_token: Optional[str] = Cookie(None)):
+    """Get remaining submission count for the logged-in team"""
+    if not auth_token:
+        return {"error": "Not authenticated", "remaining": 0}
+    
+    conn = get_db_connection()
+    auth = conn.execute(
+        'SELECT team_id FROM auth_tokens WHERE token = ?',
+        (auth_token,)
+    ).fetchone()
+    
+    if not auth:
+        conn.close()
+        return {"error": "Invalid token", "remaining": 0}
+    
+    team_id = auth["team_id"]
+    count = conn.execute(
+        'SELECT COUNT(*) as count FROM team_submissions WHERE team_id = ?',
+        (team_id,)
+    ).fetchone()["count"]
+    conn.close()
+    
+    return {"remaining": MAX_SUBMISSIONS_PER_TEAM - count, "used": count, "max": MAX_SUBMISSIONS_PER_TEAM}
+
 @app.get("/user/{name}")
 def user_history(name: str):
     conn = get_db_connection()
@@ -199,12 +266,28 @@ def user_history(name: str):
     return [{"id": r["id"], "user": r["user"], "smape": r["smape"], "timestamp": r["timestamp"]} for r in rows]
 
 @app.post("/leaderboard/reset")
-def reset():
+def reset(auth_token: Optional[str] = Cookie(None)):
+    # Verify admin authentication
+    if not auth_token:
+        return {"success": False, "error": "Not authenticated"}
+    
     conn = get_db_connection()
+    auth = conn.execute(
+        'SELECT team_id FROM auth_tokens WHERE token = ?',
+        (auth_token,)
+    ).fetchone()
+    
+    if not auth or auth["team_id"] != ADMIN_TEAM_ID:
+        conn.close()
+        return {"success": False, "error": "Admin access required"}
+    
+    # Clear both leaderboard and submission tracking
     conn.execute('DELETE FROM submissions')
+    conn.execute('DELETE FROM team_submissions')
+    conn.execute('DELETE FROM submission_history')
     conn.commit()
     conn.close()
-    return {"status": "Leaderboard reset"}
+    return {"success": True, "status": "Leaderboard and all submissions reset"}
 
 @app.get("/history/{session_id}")
 def get_history(session_id: str):
@@ -301,7 +384,8 @@ def get_current_user(auth_token: Optional[str] = Cookie(None)):
     conn.close()
     
     if auth:
-        return {"authenticated": True, "team_id": auth["team_id"], "team_name": auth["team_name"]}
+        is_admin = auth["team_id"] == ADMIN_TEAM_ID
+        return {"authenticated": True, "team_id": auth["team_id"], "team_name": auth["team_name"], "is_admin": is_admin}
     return {"authenticated": False}
 
 @app.get("/auth/verify/{token}")
