@@ -105,15 +105,60 @@ def append_score(user, score):
     conn.close()
 
 @app.post("/upload")
-async def upload(user_name: str = Form(...), file: UploadFile = None):
+async def upload(file: UploadFile = None, auth_token: Optional[str] = Cookie(None)):
+    # Verify authentication
+    if not auth_token:
+        return {"error": "Not authenticated. Please login first."}
+    
+    conn = get_db_connection()
+    auth = conn.execute(
+        'SELECT t.team_id, t.team_name FROM auth_tokens a JOIN teams t ON a.team_id = t.team_id WHERE a.token = ?',
+        (auth_token,)
+    ).fetchone()
+    
+    if not auth:
+        conn.close()
+        return {"error": "Invalid authentication. Please login again."}
+    
+    team_id = auth["team_id"]
+    team_name = auth["team_name"]
+    conn.close()
+    
     temp = None
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as t:
             t.write(file.file.read())
             temp = t.name
         score = calculate_smape(ACTUAL_FILE, temp)
-        append_score(user_name, score)
-        return {"smape": score}
+        
+        # Check if team already has a submission in leaderboard
+        conn = get_db_connection()
+        existing = conn.execute(
+            'SELECT id, smape FROM submissions WHERE user = ?',
+            (team_id,)
+        ).fetchone()
+        
+        is_best = False
+        if existing:
+            # Only update if new score is better (lower SMAPE)
+            if score < existing["smape"]:
+                conn.execute(
+                    'UPDATE submissions SET smape = ?, timestamp = ? WHERE id = ?',
+                    (score, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), existing["id"])
+                )
+                is_best = True
+        else:
+            # First submission - insert new entry
+            conn.execute(
+                'INSERT INTO submissions (user, smape, timestamp) VALUES (?, ?, ?)',
+                (team_id, score, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            )
+            is_best = True
+        
+        conn.commit()
+        conn.close()
+        
+        return {"smape": score, "team_name": team_name, "is_best": is_best}
     except Exception as e:
         return {"error": str(e)}
     finally:
@@ -123,14 +168,21 @@ async def upload(user_name: str = Form(...), file: UploadFile = None):
 @app.get("/leaderboard")
 def leaderboard():
     conn = get_db_connection()
-    rows = conn.execute('SELECT id, user, smape, timestamp FROM submissions ORDER BY smape ASC').fetchall()
+    # Join with teams table to get team_name for display
+    rows = conn.execute('''
+        SELECT s.id, s.user as team_id, t.team_name, s.smape, s.timestamp 
+        FROM submissions s 
+        LEFT JOIN teams t ON s.user = t.team_id 
+        ORDER BY s.smape ASC
+    ''').fetchall()
     conn.close()
     result = []
     for rank, row in enumerate(rows, 1):
         result.append({
             "rank": rank,
             "id": row["id"],
-            "user": row["user"],
+            "team_id": row["team_id"],
+            "user": row["team_name"] or row["team_id"],  # Fallback to team_id if no name
             "smape": row["smape"],
             "timestamp": row["timestamp"]
         })

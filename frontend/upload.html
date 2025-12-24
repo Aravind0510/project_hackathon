@@ -140,7 +140,6 @@ document.getElementById('csvFile').addEventListener('change', function(){
 let currentTeamName = 'Unknown Team';
 
 async function submitFile() {
-  const userName = currentTeamName;
   const fileInput = document.getElementById("csvFile");
   const file = fileInput.files[0];
   const status = document.getElementById("status");
@@ -151,7 +150,6 @@ async function submitFile() {
   }
 
   const formData = new FormData();
-  formData.append("user_name", userName);
   formData.append("file", file);
 
   status.innerText = "Uploading...";
@@ -161,7 +159,8 @@ async function submitFile() {
   try {
     const res = await fetch("/upload", {
       method: "POST",
-      body: formData
+      body: formData,
+      credentials: 'same-origin'  // Include cookies for auth
     });
 
     const data = await res.json();
@@ -171,8 +170,14 @@ async function submitFile() {
       if(submitBtn) submitBtn.disabled = false;
     } else {
       const timestamp = new Date().toLocaleString();
-      status.innerText = `✅ Submitted successfully. Metric Score: ${data.smape}`;
-      addToHistory(userName, data.smape, timestamp);
+      let message = `✅ Submitted successfully. Metric Score: ${data.smape}`;
+      if (data.is_best) {
+        message += " 🏆 New best score!";
+      } else {
+        message += " (Your previous best is still on leaderboard)";
+      }
+      status.innerText = message;
+      addToHistory(currentTeamName, data.smape, timestamp);
       // show a brief celebration
       showCelebration();
       if(submitBtn) submitBtn.disabled = false;
