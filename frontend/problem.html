@@ -104,6 +104,41 @@
       </ul>
       <hr class="section-divider">
 
+      <!-- Dataset Download Section -->
+      <div class="download-section" style="margin-top:24px;margin-bottom:24px;padding:20px;background:linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(59,130,246,0.08) 100%);border-radius:12px;border:1px solid rgba(16,185,129,0.2);">
+        <h3 style="margin-top:0;color:var(--primary);">📥 Download Datasets</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;margin-top:16px;">
+          <a href="datasets/train.csv" download class="download-btn" style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--text-main);transition:all 0.2s;">
+            <span style="font-size:1.5rem;">📊</span>
+            <div>
+              <div style="font-weight:600;">train.csv</div>
+              <div style="font-size:0.8rem;color:var(--text-dim);">Training data</div>
+            </div>
+          </a>
+          <a href="datasets/test.csv" download class="download-btn" style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--text-main);transition:all 0.2s;">
+            <span style="font-size:1.5rem;">📋</span>
+            <div>
+              <div style="font-weight:600;">test.csv</div>
+              <div style="font-size:0.8rem;color:var(--text-dim);">Test data</div>
+            </div>
+          </a>
+          <a href="datasets/interactions.csv" download class="download-btn" style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--text-main);transition:all 0.2s;">
+            <span style="font-size:1.5rem;">🔗</span>
+            <div>
+              <div style="font-weight:600;">interactions.csv</div>
+              <div style="font-size:0.8rem;color:var(--text-dim);">User interactions</div>
+            </div>
+          </a>
+          <a href="datasets/sample_submission_file.csv" download class="download-btn" style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--text-main);transition:all 0.2s;">
+            <span style="font-size:1.5rem;">📝</span>
+            <div>
+              <div style="font-weight:600;">sample_submission_file.csv</div>
+              <div style="font-size:0.8rem;color:var(--text-dim);">Submission template</div>
+            </div>
+          </a>
+        </div>
+      </div>
+
       <h2>📘 Dataset Schema</h2>
 
       <h3>1. train.csv</h3>
@@ -152,7 +187,7 @@
         </tbody>
       </table>
 
-      <h3>4. submission_file.csv</h3>
+      <h3>4. sample_submission_file.csv</h3>
       <table class="data-table">
         <thead>
           <tr><th><center>Column Name</center></th><th><center>Description</center></th></tr>

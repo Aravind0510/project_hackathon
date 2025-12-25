@@ -1365,3 +1365,11 @@ footer{
 .main-content .card.full li::marker{
   color:var(--accent);
 }
+
+/* Download button styles */
+.download-btn:hover{
+  border-color:var(--accent) !important;
+  background:rgba(59, 130, 246, 0.1) !important;
+  transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(59, 130, 246, 0.15);
+}
