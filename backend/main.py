@@ -5,11 +5,16 @@ from fastapi.responses import JSONResponse
 import pandas as pd
 import numpy as np
 import tempfile, os
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from datetime import datetime
 from typing import Optional
 import hashlib
 import secrets
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = FastAPI(title="SMAPE Leaderboard")
 
@@ -22,104 +27,61 @@ app.add_middleware(
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ACTUAL_FILE = os.path.join(BASE_DIR, "actual.csv")
-DB_FILE = os.path.join(BASE_DIR, "leaderboard.db")
 MAX_SUBMISSIONS_PER_TEAM = 10
 
+# Get DATABASE_URL from environment variable
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
 def get_db_connection():
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
-def init_db():
-    conn = get_db_connection()
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS submissions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user TEXT NOT NULL,
-            smape REAL NOT NULL,
-            timestamp TEXT NOT NULL
-        )
-    ''')
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS submission_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT NOT NULL,
-            team TEXT NOT NULL,
-            smape REAL NOT NULL,
-            timestamp TEXT NOT NULL
-        )
-    ''')
-    # Create teams table for authentication
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS teams (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            team_id TEXT UNIQUE NOT NULL,
-            team_name TEXT NOT NULL,
-            password_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        )
-    ''')
-    # Create auth tokens table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS auth_tokens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            team_id TEXT NOT NULL,
-            token TEXT UNIQUE NOT NULL,
-            created_at TEXT NOT NULL
-        )
-    ''')
-    # Create team_submissions table to track all submissions per team (for limit tracking)
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS team_submissions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            team_id TEXT NOT NULL,
-            smape REAL NOT NULL,
-            timestamp TEXT NOT NULL
-        )
-    ''')
-    conn.commit()
-    
-    # Insert test teams if they don't exist
-    try:
-        conn.execute(
-            'INSERT OR IGNORE INTO teams (team_id, team_name, password_hash, created_at) VALUES (?, ?, ?, ?)',
-            ('1234', 'Team Alpha', hash_password('password123'), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        )
-        conn.execute(
-            'INSERT OR IGNORE INTO teams (team_id, team_name, password_hash, created_at) VALUES (?, ?, ?, ?)',
-            ('4321', 'Team Beta', hash_password('password456'), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        )
-        # Add admin user with unique credentials
-        conn.execute(
-            'INSERT OR IGNORE INTO teams (team_id, team_name, password_hash, created_at) VALUES (?, ?, ?, ?)',
-            ('admin2025', 'Administrator', hash_password('TechnoForge@Admin#2025'), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        )
-        conn.commit()
-    except:
-        pass
-    conn.close()
-
 # Admin team ID
 ADMIN_TEAM_ID = 'admin2025'
 
-init_db()
-
 def calculate_smape(actual, predicted):
-    a = pd.read_csv(actual)["final_service_units"].values
-    p = pd.read_csv(predicted)["final_service_units"].values
-    smape = np.mean(np.abs(p - a) / ((np.abs(a) + np.abs(p)) / 2)) * 100
-    return round(smape, 2)
+    df_actual = pd.read_csv(actual)["final_service_units"].values
+    df_predicted = pd.read_csv(predicted)["final_service_units"].values
+    
+    # -------- RMSE --------
+    rmse = np.sqrt(np.mean((df_actual - df_predicted) ** 2))
+    
+    # -------- SMAPE --------
+    smape_val = np.mean(np.abs((df_actual - df_predicted) / (df_actual + 1e-8))) * 100
+    
+    # -------- HUBER LOSS --------
+    delta = 1.0
+    errors = df_actual - df_predicted
+    huber_loss = np.mean(
+        np.where(np.abs(errors) <= delta,
+                 0.5 * errors ** 2,
+                 delta * (np.abs(errors) - 0.5 * delta))
+    )
+    
+    # -------- FINAL LEADERBOARD SCORE --------
+    smape = smape_val * (1 + rmse / 12.5) + huber_loss
+
+
+    print("rmse:", rmse)
+    print("smape:", smape_val)
+    print("huber_loss:", huber_loss)
+    print("final:", smape)
+
+
+    return float(round(smape, 2))
 
 def append_score(user, score):
     conn = get_db_connection()
-    conn.execute(
-        'INSERT INTO submissions (user, smape, timestamp) VALUES (?, ?, ?)',
+    cur = conn.cursor()
+    cur.execute(
+        'INSERT INTO submissions ("user", smape, timestamp) VALUES (%s, %s, %s)',
         (user, score, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     )
     conn.commit()
+    cur.close()
     conn.close()
 
 @app.post("/upload")
@@ -129,12 +91,15 @@ async def upload(file: UploadFile = None, auth_token: Optional[str] = Cookie(Non
         return {"error": "Not authenticated. Please login first."}
     
     conn = get_db_connection()
-    auth = conn.execute(
-        'SELECT t.team_id, t.team_name FROM auth_tokens a JOIN teams t ON a.team_id = t.team_id WHERE a.token = ?',
+    cur = conn.cursor()
+    cur.execute(
+        'SELECT t.team_id, t.team_name FROM auth_tokens a JOIN teams t ON a.team_id = t.team_id WHERE a.token = %s',
         (auth_token,)
-    ).fetchone()
+    )
+    auth = cur.fetchone()
     
     if not auth:
+        cur.close()
         conn.close()
         return {"error": "Invalid authentication. Please login again."}
     
@@ -142,15 +107,18 @@ async def upload(file: UploadFile = None, auth_token: Optional[str] = Cookie(Non
     team_name = auth["team_name"]
     
     # Check submission limit
-    submission_count = conn.execute(
-        'SELECT COUNT(*) as count FROM team_submissions WHERE team_id = ?',
+    cur.execute(
+        'SELECT COUNT(*) as count FROM team_submissions WHERE team_id = %s',
         (team_id,)
-    ).fetchone()["count"]
+    )
+    submission_count = cur.fetchone()["count"]
     
     if submission_count >= MAX_SUBMISSIONS_PER_TEAM:
+        cur.close()
         conn.close()
         return {"error": f"Submission limit reached. Maximum {MAX_SUBMISSIONS_PER_TEAM} submissions allowed per team."}
     
+    cur.close()
     conn.close()
     
     temp = None
@@ -162,41 +130,45 @@ async def upload(file: UploadFile = None, auth_token: Optional[str] = Cookie(Non
         
         # Check if team already has a submission in leaderboard
         conn = get_db_connection()
-        existing = conn.execute(
-            'SELECT id, smape FROM submissions WHERE user = ?',
+        cur = conn.cursor()
+        cur.execute(
+            'SELECT id, smape FROM submissions WHERE "user" = %s',
             (team_id,)
-        ).fetchone()
+        )
+        existing = cur.fetchone()
         
         is_best = False
         if existing:
             # Only update if new score is better (lower SMAPE)
             if score < existing["smape"]:
-                conn.execute(
-                    'UPDATE submissions SET smape = ?, timestamp = ? WHERE id = ?',
+                cur.execute(
+                    'UPDATE submissions SET smape = %s, timestamp = %s WHERE id = %s',
                     (score, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), existing["id"])
                 )
                 is_best = True
         else:
             # First submission - insert new entry
-            conn.execute(
-                'INSERT INTO submissions (user, smape, timestamp) VALUES (?, ?, ?)',
+            cur.execute(
+                'INSERT INTO submissions ("user", smape, timestamp) VALUES (%s, %s, %s)',
                 (team_id, score, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             )
             is_best = True
         
         # Track this submission for limit counting
-        conn.execute(
-            'INSERT INTO team_submissions (team_id, smape, timestamp) VALUES (?, ?, ?)',
+        cur.execute(
+            'INSERT INTO team_submissions (team_id, smape, timestamp) VALUES (%s, %s, %s)',
             (team_id, score, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         )
         
         # Get updated submission count
-        new_count = conn.execute(
-            'SELECT COUNT(*) as count FROM team_submissions WHERE team_id = ?',
+        cur.execute(
+            'SELECT COUNT(*) as count FROM team_submissions WHERE team_id = %s',
             (team_id,)
-        ).fetchone()["count"]
+        )
+        new_count = cur.fetchone()["count"]
         
         conn.commit()
+        cur.close()
         conn.close()
         
         remaining = MAX_SUBMISSIONS_PER_TEAM - new_count
@@ -210,13 +182,16 @@ async def upload(file: UploadFile = None, auth_token: Optional[str] = Cookie(Non
 @app.get("/leaderboard")
 def leaderboard():
     conn = get_db_connection()
+    cur = conn.cursor()
     # Join with teams table to get team_name for display
-    rows = conn.execute('''
-        SELECT s.id, s.user as team_id, t.team_name, s.smape, s.timestamp 
+    cur.execute('''
+        SELECT s.id, s."user" as team_id, t.team_name, s.smape, s.timestamp 
         FROM submissions s 
-        LEFT JOIN teams t ON s.user = t.team_id 
+        LEFT JOIN teams t ON s."user" = t.team_id 
         ORDER BY s.smape ASC
-    ''').fetchall()
+    ''')
+    rows = cur.fetchall()
+    cur.close()
     conn.close()
     result = []
     for rank, row in enumerate(rows, 1):
@@ -237,20 +212,25 @@ def get_remaining_submissions(auth_token: Optional[str] = Cookie(None)):
         return {"error": "Not authenticated", "remaining": 0}
     
     conn = get_db_connection()
-    auth = conn.execute(
-        'SELECT team_id FROM auth_tokens WHERE token = ?',
+    cur = conn.cursor()
+    cur.execute(
+        'SELECT team_id FROM auth_tokens WHERE token = %s',
         (auth_token,)
-    ).fetchone()
+    )
+    auth = cur.fetchone()
     
     if not auth:
+        cur.close()
         conn.close()
         return {"error": "Invalid token", "remaining": 0}
     
     team_id = auth["team_id"]
-    count = conn.execute(
-        'SELECT COUNT(*) as count FROM team_submissions WHERE team_id = ?',
+    cur.execute(
+        'SELECT COUNT(*) as count FROM team_submissions WHERE team_id = %s',
         (team_id,)
-    ).fetchone()["count"]
+    )
+    count = cur.fetchone()["count"]
+    cur.close()
     conn.close()
     
     return {"remaining": MAX_SUBMISSIONS_PER_TEAM - count, "used": count, "max": MAX_SUBMISSIONS_PER_TEAM}
@@ -258,10 +238,13 @@ def get_remaining_submissions(auth_token: Optional[str] = Cookie(None)):
 @app.get("/user/{name}")
 def user_history(name: str):
     conn = get_db_connection()
-    rows = conn.execute(
-        'SELECT id, user, smape, timestamp FROM submissions WHERE LOWER(user) = LOWER(?) ORDER BY timestamp DESC',
+    cur = conn.cursor()
+    cur.execute(
+        'SELECT id, "user", smape, timestamp FROM submissions WHERE LOWER("user") = LOWER(%s) ORDER BY timestamp DESC',
         (name,)
-    ).fetchall()
+    )
+    rows = cur.fetchall()
+    cur.close()
     conn.close()
     return [{"id": r["id"], "user": r["user"], "smape": r["smape"], "timestamp": r["timestamp"]} for r in rows]
 
@@ -272,49 +255,60 @@ def reset(auth_token: Optional[str] = Cookie(None)):
         return {"success": False, "error": "Not authenticated"}
     
     conn = get_db_connection()
-    auth = conn.execute(
-        'SELECT team_id FROM auth_tokens WHERE token = ?',
+    cur = conn.cursor()
+    cur.execute(
+        'SELECT team_id FROM auth_tokens WHERE token = %s',
         (auth_token,)
-    ).fetchone()
+    )
+    auth = cur.fetchone()
     
     if not auth or auth["team_id"] != ADMIN_TEAM_ID:
+        cur.close()
         conn.close()
         return {"success": False, "error": "Admin access required"}
     
     # Clear both leaderboard and submission tracking
-    conn.execute('DELETE FROM submissions')
-    conn.execute('DELETE FROM team_submissions')
-    conn.execute('DELETE FROM submission_history')
+    cur.execute('DELETE FROM submissions')
+    cur.execute('DELETE FROM team_submissions')
+    cur.execute('DELETE FROM submission_history')
     conn.commit()
+    cur.close()
     conn.close()
     return {"success": True, "status": "Leaderboard and all submissions reset"}
 
 @app.get("/history/{session_id}")
 def get_history(session_id: str):
     conn = get_db_connection()
-    rows = conn.execute(
-        'SELECT id, team, smape, timestamp FROM submission_history WHERE session_id = ? ORDER BY id ASC',
+    cur = conn.cursor()
+    cur.execute(
+        'SELECT id, team, smape, timestamp FROM submission_history WHERE session_id = %s ORDER BY id ASC',
         (session_id,)
-    ).fetchall()
+    )
+    rows = cur.fetchall()
+    cur.close()
     conn.close()
     return [{"id": r["id"], "team": r["team"], "smape": r["smape"], "timestamp": r["timestamp"]} for r in rows]
 
 @app.post("/history/{session_id}")
 def add_history(session_id: str, team: str = Form(...), smape: float = Form(...), timestamp: str = Form(...)):
     conn = get_db_connection()
-    conn.execute(
-        'INSERT INTO submission_history (session_id, team, smape, timestamp) VALUES (?, ?, ?, ?)',
+    cur = conn.cursor()
+    cur.execute(
+        'INSERT INTO submission_history (session_id, team, smape, timestamp) VALUES (%s, %s, %s, %s)',
         (session_id, team, smape, timestamp)
     )
     conn.commit()
+    cur.close()
     conn.close()
     return {"status": "Added to history"}
 
 @app.delete("/history/{session_id}")
 def clear_history(session_id: str):
     conn = get_db_connection()
-    conn.execute('DELETE FROM submission_history WHERE session_id = ?', (session_id,))
+    cur = conn.cursor()
+    cur.execute('DELETE FROM submission_history WHERE session_id = %s', (session_id,))
     conn.commit()
+    cur.close()
     conn.close()
     return {"status": "History cleared"}
 
@@ -322,26 +316,31 @@ def clear_history(session_id: str):
 @app.post("/auth/login")
 def login(response: Response, team_id: str = Form(...), password: str = Form(...)):
     conn = get_db_connection()
-    team = conn.execute(
-        'SELECT * FROM teams WHERE team_id = ?',
+    cur = conn.cursor()
+    cur.execute(
+        'SELECT * FROM teams WHERE team_id = %s',
         (team_id,)
-    ).fetchone()
+    )
+    team = cur.fetchone()
     
     if not team:
+        cur.close()
         conn.close()
         return {"success": False, "error": "Team not found"}
     
     if team["password_hash"] != hash_password(password):
+        cur.close()
         conn.close()
         return {"success": False, "error": "Invalid password"}
     
     # Generate auth token
     token = secrets.token_hex(32)
-    conn.execute(
-        'INSERT INTO auth_tokens (team_id, token, created_at) VALUES (?, ?, ?)',
+    cur.execute(
+        'INSERT INTO auth_tokens (team_id, token, created_at) VALUES (%s, %s, %s)',
         (team_id, token, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     )
     conn.commit()
+    cur.close()
     conn.close()
     
     # Set HTTP-only cookie
@@ -363,8 +362,10 @@ def login(response: Response, team_id: str = Form(...), password: str = Form(...
 def logout(response: Response, auth_token: Optional[str] = Cookie(None)):
     if auth_token:
         conn = get_db_connection()
-        conn.execute('DELETE FROM auth_tokens WHERE token = ?', (auth_token,))
+        cur = conn.cursor()
+        cur.execute('DELETE FROM auth_tokens WHERE token = %s', (auth_token,))
         conn.commit()
+        cur.close()
         conn.close()
     
     response.delete_cookie("auth_token")
@@ -377,10 +378,13 @@ def get_current_user(auth_token: Optional[str] = Cookie(None)):
         return {"authenticated": False}
     
     conn = get_db_connection()
-    auth = conn.execute(
-        'SELECT t.team_id, t.team_name FROM auth_tokens a JOIN teams t ON a.team_id = t.team_id WHERE a.token = ?',
+    cur = conn.cursor()
+    cur.execute(
+        'SELECT t.team_id, t.team_name FROM auth_tokens a JOIN teams t ON a.team_id = t.team_id WHERE a.token = %s',
         (auth_token,)
-    ).fetchone()
+    )
+    auth = cur.fetchone()
+    cur.close()
     conn.close()
     
     if auth:
@@ -391,10 +395,13 @@ def get_current_user(auth_token: Optional[str] = Cookie(None)):
 @app.get("/auth/verify/{token}")
 def verify_token(token: str):
     conn = get_db_connection()
-    auth = conn.execute(
-        'SELECT t.team_id, t.team_name FROM auth_tokens a JOIN teams t ON a.team_id = t.team_id WHERE a.token = ?',
+    cur = conn.cursor()
+    cur.execute(
+        'SELECT t.team_id, t.team_name FROM auth_tokens a JOIN teams t ON a.team_id = t.team_id WHERE a.token = %s',
         (token,)
-    ).fetchone()
+    )
+    auth = cur.fetchone()
+    cur.close()
     conn.close()
     
     if auth:
@@ -405,7 +412,10 @@ def verify_token(token: str):
 def get_teams():
     """Get list of all registered teams (for admin purposes)"""
     conn = get_db_connection()
-    teams = conn.execute('SELECT team_id, team_name, created_at FROM teams').fetchall()
+    cur = conn.cursor()
+    cur.execute('SELECT team_id, team_name, created_at FROM teams')
+    teams = cur.fetchall()
+    cur.close()
     conn.close()
     return [{"team_id": t["team_id"], "team_name": t["team_name"], "created_at": t["created_at"]} for t in teams]
 
