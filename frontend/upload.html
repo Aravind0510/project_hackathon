@@ -177,7 +177,7 @@ async function submitFile() {
       status.innerText = "Error: " + data.error;
       if(submitBtn) submitBtn.disabled = false;
     } else {
-      const timestamp = new Date().toLocaleString();
+      const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
       let message = `✅ Submitted successfully. Metric Score: ${data.smape}`;
       if (data.is_best) {
         message += " 🏆 New best score!";

@@ -79,18 +79,19 @@
 </div>
 
 <script>
-// Format timestamp to readable format
+// Format timestamp to readable format (Indian Time)
 function formatTimestamp(timestamp) {
   if (!timestamp || timestamp === '-') return '-';
   try {
     const date = new Date(timestamp);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
+    return date.toLocaleDateString('en-IN', {
       day: 'numeric',
+      month: 'short',
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
+      timeZone: 'Asia/Kolkata'
     });
   } catch (e) {
     return timestamp;
